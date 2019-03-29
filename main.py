@@ -2,9 +2,12 @@
 
 """ Fly Bulgarian. Display of flight information. """
 
+
 from datetime import datetime
 import time
 import json
+import re
+from itertools import product
 import requests
 from lxml import html
 
@@ -24,12 +27,12 @@ def load_data(address, headers=None):
         page_html.raise_for_status()
         return result
     except requests.exceptions.ConnectionError:
-        print("A Connection error occurred.")
+        raise requests.exceptions.ConnectionError("A Connection error "
+                                                  "occurred.")
     except requests.exceptions.ReadTimeout:
-        print("Read timeout occurred")
+        raise requests.exceptions.ReadTimeout("Read timeout occurred")
     except requests.exceptions.HTTPError as response:
-        print("HTTP Error occurred")
-        print("Code: {}".format(response))
+        raise requests.exceptions.HTTPError("Code: {}".format(response))
 
 
 def get_iata(page):
@@ -62,56 +65,74 @@ def input_data(page):
     print(iata_codes)
 
     while wrong_data:
-        incorrect_value = []
-        dep_iata = input('Enter a departure city IATA-code: ')
-        arr_iata = input('Enter a arrival city IATA-code: ')
+        bug_list = []
+        dep_iata = input("Enter a departure city IATA-code: ")
+        arr_iata = input("Enter a arrival city IATA-code: ")
+
+        dep_date = input("Enter a departure date in"
+                         " format DD.MM.YYYY: ")
+
+        arr_date = input("Enter a arrival date in format DD.MM.YYYY"
+                         " or 'skip': ")
 
         try:
-            dep_date = input('Enter a departure date in'
-                             ' format DD.MM.YYYY): ')
             dep_date = datetime.strptime(dep_date, "%d.%m.%Y")\
                 .date().strftime("%d.%m.%Y")
-            # arrival_date = input('Enter a arrival date in format DD.MM.YYYY: ')
+
         except ValueError:
-            incorrect_value.append((dep_date, date_message))
-        # print(type(dep_date))
-        # depar_iata = 'BOJ'
-        # arrive_iata = 'BLL'
-        # dep_date = '08.07.2019'
+            bug_list.append((dep_date, date_message))
+
+        if arr_date != "skip":
+            try:
+                arr_date = datetime.strptime(arr_date, "%d.%m.%Y") \
+                    .date().strftime("%d.%m.%Y")
+            except ValueError:
+                bug_list.append((arr_date, date_message))
+
         if (dep_iata not in iata_codes) or \
                 (not dep_iata.isupper()):
-            incorrect_value.append((dep_iata, code_message))
+            bug_list.append((dep_iata, code_message))
 
         if (arr_iata not in iata_codes) or \
                 (not arr_iata.isupper()):
-            incorrect_value.append((arr_iata, code_message))
+            bug_list.append((arr_iata, code_message))
 
-        if not incorrect_value:
+        if not bug_list:
             wrong_data = False
         else:
-            for bug in incorrect_value:
+            for bug in bug_list:
                 print("Incorrect value: {} {}".format(bug[0], bug[1]))
 
-    return dep_iata, arr_iata, dep_date
+    return dep_iata, arr_iata, dep_date, arr_date
 
 
 def get_search_page(values):
     """"""
 
-    url = ("http://www.flybulgarien.dk/en/search?lang=2&departure-city={}&"
-           "arrival-city={}&reserve-type=&departure-date={}&"
-           "adults-children=1&search=Search%21".format(values[0],
-                                                       values[1], values[2]))
-    result = load_data(url)
+    if values[3] == "skip":
+
+        url = ("http://www.flybulgarien.dk/en/search?lang=2&departure-city={}&"
+               "arrival-city={}&reserve-type=&departure-date={}&"
+               "adults-children=1&search=Search%21".format(values[0],
+                                                           values[1],
+                                                           values[2]))
+        result = load_data(url)
+    else:
+        url = ("http://www.flybulgarien.dk/en/search?lang=2&departure-city={}&"
+               "arrival-city={}&reserve-type=&departure-date={}&"
+               "arrival-date={}&adults-children=1&search=Search%21".format(
+                values[0], values[1], values[2], values[3]))
+
+        result = load_data(url)
     return result
 
 
-def one_way_flight(page):
+def flight_information(page):
     """"""
 
     index = 1
-    result = []
-
+    out = []
+    back = []
     iframe = page.xpath("./body/div[@id='wrapper']/div[@id='content']/"
                         "div[@id='inner-page']/"
                         "div[@class='text-content']/iframe")[0]
@@ -119,48 +140,79 @@ def one_way_flight(page):
     document = iframe.get('src')
     oneway_fly = load_data(document)
 
-    tr_table = oneway_fly.xpath("./body/form[@id='form1']/"
+    table_tr = oneway_fly.xpath("./body/form[@id='form1']/"
                                 "div[@style='padding: 10px;']/"
                                 "table[@id='flywiz']/child::*")[0]
-    table_tr = tr_table.xpath("./td/table[@id='flywiz_tblQuotes']")[0]
+    tr_table = table_tr.xpath("./td/table[@id='flywiz_tblQuotes']")[0]
 
-    td = table_tr.xpath("./tr[@class='selectedrow']|"
+    td = tr_table.xpath("./tr[@class='selectedrow']|"
                         "./tr[@class='notselrow']")
 
-    for tr in enumerate(td):
-        if tr[0] % 2 == 0:
-            fly_date = tuple(tr[1].xpath("./td/text()")[0:3])
-            dep_time = datetime.strptime(fly_date[0] + fly_date[1],
-                                         "%a, %d %b %y%H:%M")
+    if not td:
+        return "No available flights found."
+    else:
+        for tr in enumerate(td):
+            if tr[0] % 2 == 0:
+                fly_date = tuple(tr[1].xpath("./td/text()")[0:4])
+                dep_time = datetime.strptime(fly_date[0] + fly_date[1],
+                                             "%a, %d %b %y%H:%M")
 
-            arr_time = datetime.strptime(fly_date[0] + fly_date[2],
-                                         "%a, %d %b %y%H:%M")
-        else:
-            price = tr[1].xpath("./td/text()")[0][-10:]
-        if index % 2 == 0:
-            result.append((fly_date[0], dep_time, arr_time, price))
-        index += 1
-    return result
+                arr_time = datetime.strptime(fly_date[0] + fly_date[2],
+                                             "%a, %d %b %y%H:%M")
+                dep_city = fly_date[3]
+
+            else:
+                price = tr[1].xpath("./td/text()")[0]
+                reg = re.compile(r'.(\d{3}\.\d{2})( EUR)')
+                parse_price = reg.findall(price)
+
+            if index == 1:
+                checked = dep_city
+
+            if index % 2 == 0:
+                if checked == dep_city:
+                    out.append((fly_date[0], dep_time, arr_time, parse_price))
+                else:
+                    back.append((fly_date[0], dep_time, arr_time, parse_price))
+            index += 1
+
+    return out, back
 
 
 def get_data():
     """"""
 
-    one_way = True
     result = []
-    if one_way:
-        fly_data = one_way_flight(search_page)
-
-    for flight in fly_data:
-        flight_dict = {"Date": flight[0],
-                       "Departure time": flight[1].strftime("%H:%M"),
-                       "Arrival time": flight[2].strftime("%H:%M"),
-                       "Flight time": str(flight[2] - flight[1])[-7:],
-                       "Class": "Standard",
-                       "Price": flight[3]
-                       }
-        result.append(flight_dict)
-    return json.dumps(result, indent=4)
+    fly_data = flight_information(search_page)
+    if isinstance(fly_data, str):
+        return fly_data
+    else:
+        if not fly_data[1]:
+            for flight in fly_data[0]:
+                flight_dict = {"Date": flight[0],
+                               "Departure time": flight[1].strftime("%H:%M"),
+                               "Arrival time": flight[2].strftime("%H:%M"),
+                               "Flight time": str(flight[2] - flight[1])[-7:],
+                               "Class": "Standard",
+                               "Price": flight[3][0][0] + flight[3][0][1]
+                               }
+                result.append(flight_dict)
+        else:
+            combination = product(fly_data[0], fly_data[1])
+            for flight in combination:
+                print(flight)
+                wrong_date = flight[0][1] > flight[1][2]
+                if wrong_date:
+                    continue
+                else:
+                    price = str(float(flight[0][3][0][0])
+                                + float(flight[1][3][0][0]))
+                    flight_dict = {"Departure date": flight[0][0],
+                                   "Arrival date": flight[1][0],
+                                   "Class": "Standard",
+                                   "Price": price + flight[0][3][0][1]}
+                    result.append(flight_dict)
+        return json.dumps(result, indent=4)
 
 
 if __name__ == '__main__':
