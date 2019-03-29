@@ -142,6 +142,7 @@ def one_way_flight(page):
         index += 1
     return result
 
+
 def get_data():
     """"""
 
@@ -154,7 +155,10 @@ def get_data():
         flight_dict = {"Date": flight[0],
                        "Departure time": flight[1].strftime("%H:%M"),
                        "Arrival time": flight[2].strftime("%H:%M"),
-                       "Flight time": str(flight[2] - flight[1])[-7:]}
+                       "Flight time": str(flight[2] - flight[1])[-7:],
+                       "Class": "Standard",
+                       "Price": flight[3]
+                       }
         result.append(flight_dict)
     return json.dumps(result, indent=4)
 
