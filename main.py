@@ -14,7 +14,9 @@ from lxml import html
 def load_data(address):
     """
     Load html page from url.
+
     :param address: address of site or request
+
     :return: html page as an <html object>
     """
 
@@ -23,13 +25,13 @@ def load_data(address):
                              "Chrome/64.0.3282.140 Safari/537.36 Edge/18.17763"
                }
     try:
-        page_html = requests.get(address, headers=headers)
+        page_html = requests.get(address, headers=headers, timeout=(3, 10))
         tree = html.fromstring(page_html.content)
         result = tree
         page_html.raise_for_status()
         return result
     except requests.exceptions.ConnectionError:
-        raise requests.exceptions.ConnectionError("A Connection error "
+        raise requests.exceptions.ConnectionError("A Connection error"
                                                   "occurred.")
     except requests.exceptions.ReadTimeout:
         raise requests.exceptions.ReadTimeout("Read timeout occurred")
@@ -41,7 +43,9 @@ def get_iata(page):
     """
     Get IATA-codes from page for
     checked on valid input.
+
     :param page: result of get_load(URL)
+
     :return: set with IATA-codes
     """
 
@@ -62,7 +66,12 @@ def input_data(page):
     """
     User input and validation check. Input continues
     until valid values are entered.
+    Result of iata_code(page) and bug_list are used to validate user input.
+    bug_list collects information about incorrect input and displays it after
+    entered all the data.
+
     :param page: result of get_load(URL)
+
     :return: tuple with data -> (dep_iata, arr_iata, dep_date, arr_date)
     """
 
@@ -116,15 +125,16 @@ def input_data(page):
 def get_search_page(values):
     """
     Get search page for parsing flight information.
-    Use request for load tag <iframe>.
-    :param values: result of input_data(page). If value[3] -> (Arrival date)
-           is empty - use request for one-way flight.
+    Tag <iframe> attribute <src> is used as request.
+
+    :param values: result of input_data(page). If Arrival date(value[3])
+                   is empty - use request for one-way flight.
+
     :return: tuple with data -> (load_data(request), flight_type)
              flight_type -> one-way or return
     """
 
-    if values[3] == "":
-
+    if len(values) == 3:
         request = ("https://apps.penguin.bg/fly/quote3.aspx?ow=&"
                    "lang=en&depdate={}&aptcode1={}&aptcode2={}&"
                    "paxcount=1&infcount=".format(values[2], values[0],
@@ -146,38 +156,44 @@ def get_flight_information(search_page):
     Get flight information for entered data in input_data(page).
     Create com_out and com_back lists with <tr> tags for
     Coming Out and Coming Back flights.
+
     :param search_page: result of get_search_page(values)
+
     :return: For one-way - one_way_flight(com_out)
              For return - return_flight(com_out, com_back)
              If no information - return "No available flights found."
     """
 
-    index = 0
+    table_header = 0
     count = 0
     com_out = []
     com_back = []
-    table = search_page[0].xpath("./body/form[@id='form1']/"
-                                 "div[@style='padding: 10px;']/"
-                                 "table[@id='flywiz']")[0]
 
+    try:
+        table = search_page[0].xpath("./body/form[@id='form1']/"
+                                     "div[@style='padding: 10px;']/"
+                                     "table[@id='flywiz']")[0]
+    except IndexError:
+        result = "No available flights found."
+        return result
     nested_table = table.xpath("//td/table[@id='flywiz_tblQuotes']")[0]
 
-    tr_tag_list = nested_table.xpath("./tr[@class='selectedrow']|"
-                                     "./tr[@class='notselrow']|"
-                                     "./tr[th[text()='Coming Back']]")
+    tr_tag_list = nested_table.xpath(".//tr[@class='selectedrow']|"
+                                     ".//tr[@class='notselrow']|"
+                                     ".//tr[th[text()='Coming Back']]")
 
     for tr_tag in tr_tag_list:
         th_tag = tr_tag.xpath("./th[text()='Coming Back']")
         if th_tag:
-            index = 1
+            table_header = 1
             continue
         if count % 2 == 0:
             first_elem = tr_tag
         else:
             second_elem = tr_tag
-            if not index:
+            if not table_header:
                 com_out.append((first_elem, second_elem))
-            elif index:
+            elif table_header:
                 com_back.append((first_elem, second_elem))
         count += 1
 
@@ -198,7 +214,9 @@ def one_way_flight(coming_out):
     - departure date;
     - arrival date;
     - price.
+
     :param coming_out: list with <tr> tags.
+
     :return: tuple with flight information ((coming out))
              and flight type -> ((departure date, arrival date,
              price), "one-way")
@@ -229,8 +247,10 @@ def return_flight(coming_out, coming_back):
     Getting necessary information about return flight:
     - departure date for Coming Out and Coming Back;
     - price.
+
     :param coming_out: list with <tr> tags.
     :param coming_back: list with <tr> tags.
+
     :return: tuple with flight information ((coming out), (coming back))
     and flight type -> (((departure date, price),
      (departure date, price)), "return")
@@ -241,7 +261,7 @@ def return_flight(coming_out, coming_back):
     combination = product(coming_out, coming_back)
     for flights in combination:
         for flight in flights:
-            fly_date = tuple(flight[0].xpath("./td/text()")[0:2])
+            fly_date = flight[0].xpath("./td/text()")[0:2]
             dep_time = datetime.strptime(fly_date[0] + fly_date[1],
                                          "%a, %d %b %y%H:%M")
             price = flight[1].xpath("./td/text()")[0]
@@ -257,10 +277,19 @@ def return_flight(coming_out, coming_back):
     return tuple(result), "return"
 
 
-def get_data():
+def get_data(*args):
     """
     Main function. Call other functions and
     generates flight information in json format.
+    If function is called with arguments *args, then they are
+    passed to the get_search_page(values), else called input_data(page).
+
+    :param args: Flight parameters: departure IATA-code,
+                 Arrival IATA-code, Departure date, Arrival Date.
+    For example: "CPH", "VAR", "02.07.2019", "13.07.2019",
+                 "CPH", "VAR", "02.07.2019".
+    Parameters transmitted only in that order.
+
     :return: if get_flight_information(search_page) return
     "No available flights found." or no valid dates for
      return flight - return "No available flights found."
@@ -284,9 +313,13 @@ def get_data():
         For return flight results sorted by price.
     """
 
+    url = "http://www.flybulgarien.dk/en/"
     flight_list = []
-    data = load_data(URL)
-    value = input_data(data)
+    data = load_data(url)
+    if not args:
+        value = input_data(data)
+    else:
+        value = args
     search_page = get_search_page(value)
     fly_data = get_flight_information(search_page)
     if isinstance(fly_data, str):
@@ -328,5 +361,7 @@ def get_data():
 
 if __name__ == '__main__':
 
-    URL = "http://www.flybulgarien.dk/en/"
+    print(get_data("CPH", "VAR", "02.07.2019"))
+    print(get_data("CPH", "VAR", "02.07.2019", "13.07.2019"))
+    print(get_data("CPH", "BOJ", "26.06.2019"))
     print(get_data())
