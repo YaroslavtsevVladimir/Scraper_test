@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0135)https://apps.penguin.bg/fly/quote3.aspx?rt=&lang=en&depdate=26.06.2019&aptcode1=CPH&rtdate=10.07.2019&aptcode2=BOJ&paxcount=1&infcount= -->
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="da"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>
+	Flybulgarien Booking Engine
+</title><link type="text/css" rel="Stylesheet" href="./return_flight_files/flybg.css"><link type="text/css" rel="stylesheet" href="./return_flight_files/forms.css"><meta http-equiv="X-UA-Compatible" content="IE=8">
+    <script type="text/javascript" async="" src="./return_flight_files/ga.js.Без названия"></script><script type="text/javascript">
+    function selectRow(qid) {
+        var rinf = document.getElementById('flywiz_rinf'+qid);
+        var rprc = document.getElementById('flywiz_rprc'+qid);
+        var isinb = false;
+        if (rinf == null || rinf == undefined) {
+            rinf = document.getElementById('flywiz_irinf'+qid);
+            rprc = document.getElementById('flywiz_irprc'+qid);
+            isinb = true;
+            }
+        
+        if (!isinb) {
+            var allRows = document.getElementById('flywiz_tblQuotes').getElementsByTagName('tr');
+            for (i = 0; i < allRows.length; i++) {
+                var tmp = allRows[i].id;
+                tmp = tmp.substring(7,8);
+                if (tmp == 'r') {
+                    allRows[i].className = 'notselrow';
+                    }
+                }
+            document.getElementById('qid1').value = qid;
+        }
+        
+        if (isinb) {
+            allRows = document.getElementById('flywiz_tblQuotes').getElementsByTagName('tr');
+            for (i = 0; i < allRows.length; i++) {
+                tmp = allRows[i].id;
+                tmp = tmp.substring(7,8);
+                if (tmp == 'i') {
+                    allRows[i].className = 'notselrow';
+                    }
+                }
+            document.getElementById('qid2').value = qid;
+            
+        }
+        rinf.className = 'selectedrow';
+        rprc.className = 'selectedrow';
+        document.getElementById('flywiz_' + qid).checked = true;
+        
+        //document.getElementById('flywiz_inf" + count.ToString() + "').className='selectedrow'");
+    }
+    
+    function window_onload() {
+        document.getElementById('loading').style.display = 'none';
+    }
+    
+    function selval(source, args) {
+        if (args == null)
+            return;
+        var qid1 = document.getElementById('qid1').value;
+        var qid2 = document.getElementById('qid2').value;
+        args.IsValid = false;
+        var isrt = false;
+        var rows = document.getElementById('flywiz_tblQuotes').rows;
+        var i = 0;
+        for (i = 0; i < rows.length; i++) {
+            if (rows[i].accessKey == 'i') {
+                isrt = true;
+            }
+        }
+        if (isrt) {
+            if (qid1 != 0 && qid2 != 0)
+                args.IsValid = true;
+        }
+        else {
+            if (qid1 != 0)
+                args.IsValid = true;
+        }
+    }
+    
+    function paxtype(tp) {
+        if (tp == null)
+            return;
+        var cstr = "flywiz_dob" + tp;
+        var cstr2 = "flywiz_drp" + tp;
+        var obj = document.getElementById(cstr);
+        var drp = document.getElementById(cstr2);
+        var lbl = document.getElementById("flywiz_lbl" + tp + '4');
+        if (drp == null)
+            return;
+        if (obj == null)
+            return;
+        if (drp.value == 1) {
+            obj.disabled = false;
+            lbl.style.visibility = "visible";
+            }
+        else {
+            obj.disabled = true;
+            lbl.style.visibility = "hidden";
+            obj.value = '';
+            }
+        }
+        
+    function checkconds(sender, args) {
+        var chkd = document.getElementById('flywiz_chkconds2');
+        if (chkd != null && chkd.checked == false) {
+            args.IsValid = false;
+            return;
+            }
+        args.IsValid = true;
+        return;
+    }
+    </script>
+    <script src="./return_flight_files/jquery-1.4.4.min.js.Без названия"></script>
+    <script type="text/javascript">
+        $(function () {
+	
+         $("#flywiz_FinishNavigationTemplateContainerID_btnPayByBorica").click(function(e) 
+         { 
+            if (document.getElementById('flywiz_chkconds2').checked) {
+                    return true;
+                }
+                else {
+                    alert('Please agree with our general conditions');
+                    return false;
+                }
+         });   
+
+
+
+            $("#flywiz_FinishNavigationTemplateContainerID_btn2Dibs").click(function (event) {
+                var paytype = $("#paytype").val();
+                if (paytype == "DK") {
+                    $("#paymethdiv").addClass("err");
+                    //event.preventDefault();
+                    return false;
+                }
+                if (document.getElementById('flywiz_chkconds2').checked) {
+                    document.forms['dpost'].submit()
+                }
+                else {
+                    alert('Please agree with our general conditions');
+                    return false;
+                }
+            });
+        });
+    </script>
+</head>
+<body onload="window_onload();">
+    <form method="post" action="https://apps.penguin.bg/fly/quote3.aspx?rt=&amp;lang=en&amp;depdate=26.06.2019&amp;aptcode1=CPH&amp;rtdate=10.07.2019&amp;aptcode2=BOJ&amp;paxcount=1&amp;infcount=" onsubmit="javascript:return WebForm_OnSubmit();" id="form1">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="">
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUKLTEzNzU0NzExMA9kFgICAw9kFgQCGQ88KwAJAQAPFgYeDVNlbGVjdGVkSW5kZXhmHghEYXRhS2V5cxYAHgtfIUl0ZW1Db3VudAIEZBYIZg9kFgICAg8VAQZTZWFyY2hkAgEPZBYCAgIPFQEEQm9va2QCAg9kFgICAg8VAQdEZXRhaWxzZAIDD2QWAgICDxUBB1BheW1lbnRkAhsPPCsADwEOaBYCZg9kFgICAQ9kFgJmD2QWAmYPZBYGZg9kFgICAQ9kFgwCAg8PFgQeCENzc0NsYXNzBQlub3RzZWxyb3ceBF8hU0ICAhYCHgdvbmNsaWNrBRNzZWxlY3RSb3coJ0ZPM0owJyk7ZAIDDw8WBB8DBQlub3RzZWxyb3cfBAICFgIfBQUTc2VsZWN0Um93KCdGTzNKMCcpO2QCBw8PFgQfAwUJbm90c2Vscm93HwQCAhYCHwUFE3NlbGVjdFJvdygnRk8zSjEnKTtkAggPDxYEHwMFCW5vdHNlbHJvdx8EAgIWAh8FBRNzZWxlY3RSb3coJ0ZPM0oxJyk7ZAIJDw8WBB8DBQlub3RzZWxyb3cfBAICFgIfBQUTc2VsZWN0Um93KCdGTzNKMicpO2QCCg8PFgQfAwUJbm90c2Vscm93HwQCAhYCHwUFE3NlbGVjdFJvdygnRk8zSjInKTtkAgIPZBZKAi0PEGQPFgJmAgEWAhAFATAFATBnEAUBMQUBMWcWAWZkAi8PFgIeB1Zpc2libGVnFgICAQ8QD2QWAh4Ib25jaGFuZ2UFCnBheHR5cGUoMSlkFgFmZAIxDxYCHwZnZAIzDxYCHwZnZAI1DxYCHwZnZAI3DxYCHwZoFgICAQ8QD2QWAh8HBQpwYXh0eXBlKDIpZBYBZmQCOQ8WAh8GaGQCOw8WAh8GaGQCPQ8WAh8GaGQCPw8WAh8GaBYCAgEPEA9kFgIfBwUKcGF4dHlwZSgzKWQWAWZkAkEPFgIfBmhkAkMPFgIfBmhkAkUPFgIfBmhkAkcPFgIfBmgWAgIBDxAPZBYCHwcFCnBheHR5cGUoNClkFgFmZAJJDxYCHwZoZAJLDxYCHwZoZAJNDxYCHwZoZAJPDxYCHwZoFgICAQ8QD2QWAh8HBQpwYXh0eXBlKDUpZBYBZmQCUQ8WAh8GaGQCUw8WAh8GaGQCVQ8WAh8GaGQCVw8WAh8GaBYCAgEPEA9kFgIfBwUKcGF4dHlwZSg2KWQWAWZkAlkPFgIfBmhkAlsPFgIfBmhkAl0PFgIfBmhkAl8PFgIfBmgWAgIBDxAPZBYCHwcFCnBheHR5cGUoNylkFgFmZAJhDxYCHwZoZAJjDxYCHwZoZAJlDxYCHwZoZAJnDxYCHwZoFgICAQ8QD2QWAh8HBQpwYXh0eXBlKDgpZBYBZmQCaQ8WAh8GaGQCaw8WAh8GaGQCbQ8WAh8GaGQCbw8WAh8GaBYCAgEPEA9kFgIfBwUKcGF4dHlwZSg5KWQWAWZkAnEPFgIfBmhkAnMPFgIfBmhkAnUPFgIfBmhkAgMPZBYCAgkPZBYCAgMPEGRkFgBkGAMFHl9fQ29udHJvbHNSZXF1aXJlUG9zdEJhY2tLZXlfXxYGBQxmbHl3aXokRk8zSjAFDGZseXdpeiRGTzNKMAUMZmx5d2l6JEZPM0oxBQxmbHl3aXokRk8zSjEFDGZseXdpeiRGTzNKMgUMZmx5d2l6JEZPM0oyBQZmbHl3aXoPEGQUKwEBZmZkBRZmbHl3aXokV2l6YXJkTXVsdGlWaWV3Dw9kZmSG+iLXS8fR34rB7N91/taA9MEPUpz0vUDGrLVk8pN4rg==">
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="./return_flight_files/WebResource.axd" type="text/javascript"></script>
+
+
+<script src="./return_flight_files/ScriptResource.axd" type="text/javascript"></script>
+<script src="./return_flight_files/ScriptResource(1).axd" type="text/javascript"></script>
+<script src="./return_flight_files/ScriptResource(2).axd" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+function WebForm_OnSubmit() {
+if (typeof(ValidatorOnSubmit) == "function" && ValidatorOnSubmit() == false) return false;
+return true;
+}
+//]]>
+</script>
+
+    <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('scriptman', 'form1', [], [], [], 90, '');
+//]]>
+</script>
+
+    <div id="loading" style="background-color: white; font-family: &quot;Verdana Sans-Serif&quot;; border: 1px solid black; position: absolute; top: 20%; left: 40%; padding: 10px; font-size: larger; color: rgb(255, 102, 0); display: none;"><img src="./return_flight_files/wait.gif" alt="waiticon" style="vertical-align:middle" width="26" height="26">Please wait...</div>
+    
+    <input name="fullname" type="hidden" id="fullname">
+    <input name="ptgsys" type="hidden" id="ptgsys" value="epay">
+    <input name="infcount" type="hidden" id="infcount" value="0">
+    <input name="culture" type="hidden" id="culture" value="0">
+    <input name="startdate" type="hidden" id="startdate" value="10.07.19">
+    <input name="altapt" type="hidden" id="altapt">
+    <input name="newapt" type="hidden" id="newapt">
+    <input type="hidden" name="skiplastpage" value="foo">
+    
+    
+    <input name="cc" type="hidden" id="cc" value="VISA">
+    <div style="padding: 10px;">
+    <input name="qid1" type="hidden" id="qid1" value="0">
+    <input name="qid2" type="hidden" id="qid2" value="0">
+    <table id="SideBarList" class="stepsheader" cellspacing="0" cellpadding="5" border="0" style="border-collapse:collapse;">
+	<tbody><tr>
+		<td style="color:DarkGreen;font-weight:bold;width:120px;">
+                    <img src="./return_flight_files/bullet_green.gif" id="SideBarList_ctl00_icn" alt="arrowicon">Search
+                    </td><td style="width:120px;">
+                    <img src="./return_flight_files/bullet_green.gif" id="SideBarList_ctl01_icn" alt="arrowicon">Book
+                    </td><td style="width:120px;">
+                    <img src="./return_flight_files/bullet_green.gif" id="SideBarList_ctl02_icn" alt="arrowicon">Details
+                    </td><td style="width:120px;">
+                    <img src="./return_flight_files/bullet_green.gif" id="SideBarList_ctl03_icn" alt="arrowicon">Payment
+                    </td>
+	</tr>
+</tbody></table>
+        <table cellspacing="0" cellpadding="0" border="0" id="flywiz" style="border-collapse:collapse;">
+	<tbody><tr style="height:100%;">
+		<td>
+                    <table id="flywiz_tblQuotes" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+			<tbody><tr>
+				<th colspan="6">Going Out</th>
+			</tr><tr>
+				<th></th><th>Date</th><th>Departure</th><th>Arrival</th><th>From</th><th>To</th>
+			</tr><tr id="flywiz_rinfFO3J0" class="notselrow" onclick="selectRow(&#39;FO3J0&#39;);">
+				<td><input id="flywiz_FO3J0" type="radio" name="flywiz$FO3J0" value="FO3J0" tabindex="1"></td><td style="width:130px;">Tue, 2 Jul 19</td><td>21:50</td><td>01:40</td><td style="width:150px;">Copenhagen (CPH)</td><td style="width:150px;">Varna (VAR)</td>
+			</tr><tr id="flywiz_rprcFO3J0" class="notselrow" onclick="selectRow(&#39;FO3J0&#39;);">
+				<td></td><td style="width:150px;">Price:  207.00 EUR</td><td colspan="4">NO LUGGAGE INCLUDED IN THE PRICE</td>
+			</tr><tr>
+				<td colspan="6" style="height:25px;"></td>
+			</tr><tr>
+				<th colspan="6">Coming Back</th>
+			</tr><tr>
+				<th></th><th>Date</th><th>Departure</th><th>Arrival</th><th>From</th><th>To</th>
+			</tr><tr id="flywiz_irinfFO3J1" class="notselrow" onclick="selectRow(&#39;FO3J1&#39;);">
+				<td><input id="flywiz_FO3J1" type="radio" name="flywiz$FO3J1" value="FO3J1" tabindex="1"></td><td style="width:130px;">Mon, 8 Jul 19</td><td>16:00</td><td>17:50</td><td style="width:150px;">Burgas (BOJ)</td><td style="width:150px;">Billund (BLL)</td>
+			</tr><tr id="flywiz_irprcFO3J1" class="notselrow" onclick="selectRow(&#39;FO3J1&#39;);">
+				<td></td><td style="width:150px;">Price:  119.00 EUR</td><td colspan="4"></td>
+			</tr><tr id="flywiz_irinfFO3J2" class="notselrow" onclick="selectRow(&#39;FO3J2&#39;);">
+				<td><input id="flywiz_FO3J2" type="radio" name="flywiz$FO3J1" value="FO3J2" tabindex="2"></td><td style="width:130px;">Mon, 15 Jul 19</td><td>16:00</td><td>17:50</td><td style="width:150px;">Burgas (BOJ)</td><td style="width:150px;">Billund (BLL)</td>
+			</tr><tr id="flywiz_irprcFO3J2" class="notselrow" onclick="selectRow(&#39;FO3J2&#39;);">
+				<td></td><td style="width:150px;">Price:  185.00 EUR</td><td colspan="4"></td>
+			</tr><tr>
+				<th colspan="6"></th>
+			</tr>
+		</tbody></table>
+                    <span id="flywiz_selval" style="color:Red;display:none;">Please select an outbound/inbound flight.</span>
+                    <div id="flywiz_ValidationSummary1" style="color:Red;display:none;">
+
+		</div>
+                </td>
+	</tr><tr>
+		<td align="right">
+                <input type="submit" name="flywiz$StartNavigationTemplateContainerID$StartNextButton" value="Next" onclick="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;flywiz$StartNavigationTemplateContainerID$StartNextButton&quot;, &quot;&quot;, true, &quot;paxes&quot;, &quot;&quot;, false, false))" id="flywiz_StartNavigationTemplateContainerID_StartNextButton" class="wizbtn" style="width:100px;">
+            </td>
+	</tr>
+</tbody></table>
+        </div>
+	 <input type="hidden" name="orderid" id="orderid">
+    
+<div>
+
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="/wEdABDd54RgHjon4o87+hCCwwuFuSeguCNpWY6Zl0DXD9V2CVYnkb/qSc+MlMuGKXGR4C/gi7vFWmnVIJDw6/iBEKyYBsoaFpTXYZBNg8B/4CJ1SWW+dxgKcRy58h9v0gZ5huRvbyXGxg7HxMAqrdjU5juxkmWXwYfd0SZM0/tg1mYzcpjfBTJDhzj++7WGB63f1mEKby4mXCShEPz0LRFqMsMeYH4FOovcDuBwSybY3ua0/iKAsU9j/VbbJRUdWb3K/YAG8OpAWFV2j+IMLAlmOReO0Eki8luMowIlYVF5K/n1mzDLlOwMOgYXPmVSv+CiKJriCOn5FhReOrjcu+TBe1sCn/uQI8VnVOOMsknLMfX+cw0DC8gJxhob4nf2POAczlk=">
+</div>
+<script type="text/javascript">
+//<![CDATA[
+var Page_ValidationSummaries =  new Array(document.getElementById("flywiz_ValidationSummary1"));
+var Page_Validators =  new Array(document.getElementById("flywiz_selval"));
+//]]>
+</script>
+
+<script type="text/javascript">
+//<![CDATA[
+var flywiz_selval = document.all ? document.all["flywiz_selval"] : document.getElementById("flywiz_selval");
+flywiz_selval.errormessage = "Please select an outbound/inbound flight.";
+flywiz_selval.display = "Dynamic";
+flywiz_selval.validationGroup = "flight";
+flywiz_selval.evaluationfunction = "CustomValidatorEvaluateIsValid";
+flywiz_selval.clientvalidationfunction = "selval";
+var flywiz_ValidationSummary1 = document.all ? document.all["flywiz_ValidationSummary1"] : document.getElementById("flywiz_ValidationSummary1");
+flywiz_ValidationSummary1.showmessagebox = "True";
+flywiz_ValidationSummary1.showsummary = "False";
+//]]>
+</script>
+
+<script type="text/javascript">document.getElementById('loading').style.display = 'none';</script>
+<script type="text/javascript">
+//<![CDATA[
+
+var Page_ValidationActive = false;
+if (typeof(ValidatorOnLoad) == "function") {
+    ValidatorOnLoad();
+}
+
+function ValidatorOnSubmit() {
+    if (Page_ValidationActive) {
+        return ValidatorCommonOnSubmit();
+    }
+    else {
+        return true;
+    }
+}
+        
+(function(id) {
+    var e = document.getElementById(id);
+    if (e) {
+        e.dispose = function() {
+            Array.remove(Page_ValidationSummaries, document.getElementById(id));
+        }
+        e = null;
+    }
+})('flywiz_ValidationSummary1');
+
+document.getElementById('flywiz_selval').dispose = function() {
+    Array.remove(Page_Validators, document.getElementById('flywiz_selval'));
+}
+//]]>
+</script>
+</form>
+    <form id="dpost" action="https://payment.architrade.com/paymentweb/start.action" method="post">
+    <input name="amount" type="hidden" id="amount" value="0">
+    <input name="currency" type="hidden" id="currency">
+    <input name="merchant" type="hidden" value="4220915">
+    <input type="hidden" name="decorator" value="basal">
+    
+   
+ 
+    <input name="callbackurl" type="hidden" id="callbackurl" value="http://apps.penguin.bg/fly/Payok2.aspx">
+    <input type="hidden" name="accepturl" value="http://apps.penguin.bg/fly/Payok2.aspx">
+    <input name="paytype" type="hidden" id="paytype" value="DK">
+    <input type="hidden" name="color" value="grey">
+    <input name="lang" type="hidden" id="lang" value="en">
+    <input name="ordertext" type="hidden" id="ordertext">
+    </form>
+    <script type="text/javascript">
+
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', 'UA-224906-9']);
+        _gaq.push(['_setDomainName', 'none']);
+        _gaq.push(['_setAllowLinker', true]);
+        _gaq.push(['_trackPageview']);
+
+        (function () {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+        })();
+
+</script>
+
+
+</body></html>

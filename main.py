@@ -40,7 +40,7 @@ def load_data(address):
 def get_iata(page):
     """
     Get IATA-codes from page for
-    checked on corrected input.
+    checked on valid input.
     :param page: result of get_load(URL)
     :return: set with IATA-codes
     """
@@ -48,19 +48,20 @@ def get_iata(page):
     try:
         form = page.xpath("./body/div[@id='wrapper']/div[@id='content']/"
                           "div[@id='reserve']/form[@id='reserve-form']")[0]
+
         options = form.xpath("./dl/dd[@class='double']/"
                              "select[@id='departure-city']/"
                              "option/@value")[1:]
-        result = set(options)
+        result = tuple(options)
         return result
-    except (AttributeError, IndexError):
+    except (AttributeError, TypeError, IndexError):
         print("Incorrect result of load_data(address) function")
 
 
 def input_data(page):
     """
     User input and validation check. Input continues
-    until valid values are enterd.
+    until valid values are entered.
     :param page: result of get_load(URL)
     :return: tuple with data -> (dep_iata, arr_iata, dep_date, arr_date)
     """
@@ -117,9 +118,9 @@ def get_search_page(values):
     Get search page for parsing flight information.
     Use request for load tag <iframe>.
     :param values: result of input_data(page). If value[3] -> (Arrival date)
-    is empty - use request for one-way flight.
+           is empty - use request for one-way flight.
     :return: tuple with data -> (load_data(request), flight_type)
-    flight_type -> one-way or return
+             flight_type -> one-way or return
     """
 
     if values[3] == "":
@@ -155,15 +156,15 @@ def get_flight_information(search_page):
     count = 0
     com_out = []
     com_back = []
-    table_tr = search_page[0].xpath("./body/form[@id='form1']/"
-                                    "div[@style='padding: 10px;']/"
-                                    "table[@id='flywiz']")[0]
+    table = search_page[0].xpath("./body/form[@id='form1']/"
+                                 "div[@style='padding: 10px;']/"
+                                 "table[@id='flywiz']")[0]
 
-    tr_table = table_tr.xpath("//td/table[@id='flywiz_tblQuotes']")[0]
+    nested_table = table.xpath("//td/table[@id='flywiz_tblQuotes']")[0]
 
-    tr_tag_list = tr_table.xpath("./tr[@class='selectedrow']|"
-                                 "./tr[@class='notselrow']|"
-                                 "./tr[th[text()='Coming Back']]")
+    tr_tag_list = nested_table.xpath("./tr[@class='selectedrow']|"
+                                     "./tr[@class='notselrow']|"
+                                     "./tr[th[text()='Coming Back']]")
 
     for tr_tag in tr_tag_list:
         th_tag = tr_tag.xpath("./th[text()='Coming Back']")
@@ -174,10 +175,10 @@ def get_flight_information(search_page):
             first_elem = tr_tag
         else:
             second_elem = tr_tag
-        if not index and count % 2 != 0:
-            com_out.append((first_elem, second_elem))
-        elif index and count % 2 != 0:
-            com_back.append((first_elem, second_elem))
+            if not index:
+                com_out.append((first_elem, second_elem))
+            elif index:
+                com_back.append((first_elem, second_elem))
         count += 1
 
     if (not com_out or not com_back) and search_page[1] == "return"\
@@ -198,9 +199,9 @@ def one_way_flight(coming_out):
     - arrival date;
     - price.
     :param coming_out: list with <tr> tags.
-    :return: tuple with flight information
-    and flight type -> ((departure date, arrival date,
-                       price), "one-way")
+    :return: tuple with flight information ((coming out))
+             and flight type -> ((departure date, arrival date,
+             price), "one-way")
     """
 
     result = []
@@ -230,7 +231,7 @@ def return_flight(coming_out, coming_back):
     - price.
     :param coming_out: list with <tr> tags.
     :param coming_back: list with <tr> tags.
-    :return: tuple with flight information
+    :return: tuple with flight information ((coming out), (coming back))
     and flight type -> (((departure date, price),
      (departure date, price)), "return")
     """
@@ -238,8 +239,8 @@ def return_flight(coming_out, coming_back):
     index = 0
     result = []
     combination = product(coming_out, coming_back)
-    for tr_tag in combination:
-        for flight in tr_tag:
+    for flights in combination:
+        for flight in flights:
             fly_date = tuple(flight[0].xpath("./td/text()")[0:2])
             dep_time = datetime.strptime(fly_date[0] + fly_date[1],
                                          "%a, %d %b %y%H:%M")
@@ -264,7 +265,7 @@ def get_data():
     "No available flights found." or no valid dates for
      return flight - return "No available flights found."
      else return flight information in json format:
-     one-way:
+     one-way flight:
         [{
             "Date": "Sat, 06 Jul 19",
             "Departure time": "21:50",
@@ -273,14 +274,14 @@ def get_data():
             "Class": "Standard",
             "Price": "160.00 EUR"
         }]
-     return:
+     return flight:
         [{
-            "Departure date": "Sat, 06 Jul 19",
-            "Arrival date": "Sat, 13 Jul 19",
+            "Departure date": "Sat, 06 Jul 19 21:50",
+            "Arrival date": "Sat, 13 Jul 19 16:00",
             "Class": "Standard",
             "Price": "253.0 EUR"
         }]
-        result sorted by price.
+        For return flight results sorted by price.
     """
 
     flight_list = []
@@ -310,9 +311,9 @@ def get_data():
                     price = str(float(flight[0][1][0])
                                 + float(flight[1][1][0]))
                     flight_dict = {"Departure date":
-                                   flight[0][0].strftime("%a, %d %b %y"),
+                                   flight[0][0].strftime("%a, %d %b %y %H:%M"),
                                    "Arrival date":
-                                   flight[1][0].strftime("%a, %d %b %y"),
+                                   flight[1][0].strftime("%a, %d %b %y %H:%M"),
                                    "Class": "Standard",
                                    "Price": price + flight[0][1][1]}
                     flight_list.append(flight_dict)

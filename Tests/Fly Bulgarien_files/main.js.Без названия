@@ -1,0 +1,250 @@
+$(document).ready(function(){
+	/*		   
+	if ($('#map').length > 0) {
+		// <![CDATA[
+		var so = new SWFObject("/design_site/temp/map.swf", "map-flash", "381", "292", "8", "#000");
+		so.addParam("wmode", "transparent");
+		so.write("map");
+		// ]]>
+	}*/
+	
+	$('input.submit').hover(
+		function () {$(this).addClass("hover");}, 
+		function () {$(this).removeClass("hover");}
+	);	
+	
+	
+			
+	
+	
+if($("#reserve-form").is("*"))
+	{	
+	//home page
+	disabl('arrival-city');
+	disabl('departure-date');
+	disabl('arrival-date');
+	disabl('arrival-city');
+	//=============disabl('adults-children');
+	disabl('oneway');
+	disabl('return');
+	
+	$('#departure-date').attr("readonly","readonly")
+	$('#arrival-date').attr("readonly","readonly")
+	
+	
+	$("#departure-city").val('');
+	$("#arrival-city").removeOption(/./);
+	$("#oneway").attr('checked','checked');
+		
+    $("#departure-city").change(function(){
+		
+		$("#arrival-city").removeOption(/./);
+		disabl('oneway');
+		disabl('return');
+		$("#oneway").attr('checked','checked');
+		
+		disabl('arrival-date');
+		disabl('departure-date');
+		
+		$('#arrival-date').datepicker( 'destroy' );
+		$('#arrival-date').val('');		
+		$('#departure-date').datepicker( 'destroy' );
+		$('#departure-date').val('');		
+		
+		
+		
+		
+		if($("#departure-city").val()) 
+		$("#arrival-city").ajaxAddOption("/script/getcity/"+$("#lang").val()+"-"+$("#departure-city").val(),{},false,setoption);
+	
+		if($(this).val()) enabl('arrival-city');
+		else disabl('arrival-city');
+	});
+	
+	
+	$("#arrival-city").change(function(){
+	
+		if($(this).val()) {
+		$('#arrival-date').datepicker( 'destroy' );
+		$('#arrival-date').val('');		
+		$('#departure-date').datepicker( 'destroy' );
+		$('#departure-date').val('');	
+		getcalendars();
+		enabl('oneway');
+		enabl('return');
+		enabl('departure-date');
+		}
+		else 
+		{
+		$('#arrival-date').datepicker( 'destroy' );
+		$('#arrival-date').val('');		
+		$('#departure-date').datepicker( 'destroy' );
+		$('#departure-date').val('');	
+		disabl('oneway');
+		disabl('return');
+		disabl('departure-date');
+		disabl('arrival-date');
+		$("#oneway").attr('checked','checked');
+		}
+   });	
+	
+	$("input[name$=reserve-type]").click(function(){
+		if($(this).attr("id")=='oneway') disabl('arrival-date');
+		else enabl('arrival-date');
+	});	
+	}//enf if form
+});
+
+function flightDays1(date) {
+
+   if(fDays1)   
+    for (i = 0; i < fDays1.length; i++) {
+		
+      if (date.getFullYear()==fDays1[i][0] && date.getMonth() == (fDays1[i][1] - 1)  && date.getDate() == fDays1[i][2])   return [true, ''];
+      
+    }
+	return [false, '']
+}
+function flightDays2(date) {
+	
+	if(fDays2)
+    for (i = 0; i < fDays2.length; i++) {
+      if (date.getFullYear()==fDays2[i][0] && date.getMonth() == (fDays2[i][1] - 1)  && date.getDate() == fDays2[i][2])   return [true, ''];
+    }
+	return [false, ''];
+}
+
+
+var fDays1=Array();
+var fDays2=Array();	
+
+function getcalendars()
+	{
+	var dt = new Date();
+			$.post("/script/getdates/"+$("#lang").val()+"-departure",{"code1" : $("#departure-city").val(), "code2" : $("#arrival-city").val()},function(data){
+				var d=data.split("-");
+				fDays1=eval(d[0]);
+				fDays2=eval(d[1]);
+				
+				if(fDays2&&fDays2[0][0]) flDays20=parseInt(fDays2[0][0]);
+				else flDays20=0;
+				if(fDays2&&fDays2[0][1]) flDays21=parseInt(fDays2[0][1]);
+				else flDays21=0;
+				if(fDays2&&fDays2[0][2]) flDays22=parseInt(fDays2[0][2]);
+				else flDays22=0;
+				
+				if(flDays20&&flDays21&&flDays22) arrivalMinDate=new Date(flDays20, (flDays21-2) , (flDays22+1));
+				else arrivalMinDate="";
+				
+				if(fDays1) departureMinDate=new Date(parseInt(fDays1[0][0]), (parseInt(fDays1[0][1])-2) , (parseInt(fDays1[0][2])+1));
+				else departureMinDate="";
+		
+				$('#departure-date').datepicker({
+				duration: 'fast', 
+				dateFormat: 'dd.mm.yy', 
+				firstDay: 1, 	
+				monthNames: months,
+				dayNamesMin: days,
+				//minDate: new Date(parseInt(fDays1[0][0]), (parseInt(fDays1[0][1])-2) , (parseInt(fDays1[0][2])+1)),
+				minDate: departureMinDate,
+				numberOfMonths: 3,
+				beforeShowDay:  flightDays1,
+				onSelect: regenerateCalendar
+				});	
+				$('#arrival-date').datepicker({
+				duration: 'fast', 
+				dateFormat: 'dd.mm.yy', 
+				firstDay: 1, 	
+				monthNames: months,
+				dayNamesMin: days,
+				//minDate: new Date(parseInt(fDays2[0][0]), (parseInt(fDays2[0][1])-2) , (parseInt(fDays2[0][2])+1)),
+				minDate: arrivalMinDate,
+				numberOfMonths: 3,
+				beforeShowDay:  flightDays2
+				});
+				
+		});
+				
+					
+	}
+
+function regenerateCalendar(date)
+{
+	if($('#departure-date').val())
+	{
+		$('#arrival-date').datepicker( 'destroy' );
+		$('#arrival-date').val('');
+		
+		var dt=$('#departure-date').val().split(".");
+		
+		$('#arrival-date').datepicker({
+				duration: 'fast', 
+				dateFormat: 'dd.mm.yy', 
+				firstDay: 1, 	
+				monthNames: months,
+				dayNamesMin: days,
+				minDate: new Date(parseInt(dt[2]), (parseInt(dt[1])-2) , (parseInt(dt[0])+1)),
+				numberOfMonths: 3,
+				beforeShowDay:  flightDays2
+				});
+	}	
+}
+
+function setoption()
+{
+	if(this.options.length==2) 
+		{
+			this.options[1].selected = true;
+			enabl('oneway');
+			enabl('return');
+			enabl('departure-date');
+			getcalendars();
+		}
+}
+
+function disabl(id)
+{
+	$("#"+id).attr('disabled','disabled');
+	$("#"+id).addClass('disable');
+	$("#"+id).val('');
+	$("#label-"+id).addClass('disable');
+	$("#"+id).animate({ opacity: 0.8},100);
+	$("#"+id).animate({ opacity: 1},100);
+	
+}
+function enabl(id)
+{
+	$("#"+id).attr('disabled','');
+	$("#"+id).removeClass('disable');
+	$("#label-"+id).removeClass('disable');
+	$("#"+id).animate({ opacity: 0.8},100);
+	$("#"+id).animate({ opacity: 1},100);
+
+}
+
+function flash_changecity(code)
+{
+	//alert(code);
+	$("#departure-city").val(code);
+	$("#arrival-city").removeOption(/./);
+		disabl('oneway');
+		disabl('return');
+		$("#oneway").attr('checked','checked');
+		
+		disabl('arrival-date');
+		disabl('departure-date');
+		
+		$('#arrival-date').datepicker( 'destroy' );
+		$('#arrival-date').val('');		
+		$('#departure-date').datepicker( 'destroy' );
+		$('#departure-date').val('');		
+		
+		
+		
+		
+		if($("#departure-city").val()) 
+		$("#arrival-city").ajaxAddOption("/script/getcity/"+$("#lang").val()+"-"+$("#departure-city").val(),{},false,setoption);
+	
+		if($("#departure-city").val()) enabl('arrival-city');
+		else disabl('arrival-city');	
+}		

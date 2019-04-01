@@ -1,0 +1,105 @@
+﻿body 
+{
+	margin: 0px;
+}
+
+thead td {
+	font-weight: bold;
+	padding: 5px;
+	text-align: center;
+}
+
+tbody td {
+	padding: 3px;
+}
+
+.grayline {
+	clear:both;
+	background-image:url(http://www.flybulgarien.dk/_files/site/images/grayline.gif);
+	background-repeat:repeat-x;
+	background-position:0;
+	margin-top: 10px;
+	display:block;
+}
+
+* 
+{
+	font-family: Tahoma, Arial, Helvetica, Sans-Serif;
+	font-size: small;
+}
+
+li
+{
+	list-style-image: url(http://www.flybulgarien.dk/img/bullet_green.gif);
+	list-style-position: outside;
+}
+
+li a:hover 
+{
+	list-style-image: url(http://www.flybulgarien.dk/img/bullet_green_o.gif);
+	list-style-position: outside;
+}
+
+.stepsheader 
+{
+	vertical-align: middle;
+	text-align: left;
+	text-transform: uppercase;
+	vertical-align: text-top;
+	font-family: Georgia, Verdana, Helvetica, Sans-Serif;
+	font-size: larger;
+}
+
+.selectedrow
+{
+    	background-color: #ffce65;
+    	font-weight: bold;
+    	cursor: default;
+    	display: table-row;
+}
+
+.notselrow 
+{
+    	font-weight: normal;
+    	background-color: #ffffff;
+    	cursor: pointer;
+    	display: table-row;
+}
+
+input 
+{
+    
+}
+
+.rowhdr 
+{
+	color: White;
+	background-color: #8fb670;
+	font-weight: bold;
+}
+
+.wizbtn 
+{
+	background-color: #f5a700;
+	color: White;
+	text-transform: uppercase;
+	font-weight: bold;
+	border-bottom-style: groove;
+	border-width: 2px;
+	border-bottom-color: #ffce65;
+}
+
+fieldset 
+{
+    
+}
+
+label 
+{
+    margin-bottom: 5px;
+}
+
+.err 
+{
+    border: 1px solid red;
+}
