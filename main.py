@@ -75,11 +75,11 @@ def input_data(page):
     :return: tuple with data -> (dep_iata, arr_iata, dep_date, arr_date)
     """
 
-    bug_list = []
-    code_message = "must be correct IATA-code and conform to upper-case"
-    date_message = "must be correct date format: DD.MM.YYYY"
-
     iata_codes = get_iata(page)
+
+    bug_list = []
+    code_message = "must be correct IATA-code: {}".format(iata_codes)
+    date_message = "must be correct date format: DD.MM.YYYY"
 
     while True:
 
@@ -130,8 +130,7 @@ def get_search_page(values):
     :param values: result of input_data(page). If Arrival date(value[3])
                    is empty - use request for one-way flight.
 
-    :return: tuple with data -> (load_data(request), flight_type)
-             flight_type -> one-way or return
+    :return: load_data(request)
     """
 
     if len(values) == 3:
@@ -139,7 +138,6 @@ def get_search_page(values):
                    "lang=en&depdate={}&aptcode1={}&aptcode2={}&"
                    "paxcount=1&infcount=".format(values[2], values[0],
                                                  values[1]))
-        flight_type = "one-way"
     else:
         request = ("https://apps.penguin.bg/fly/quote3.aspx?rt=&"
                    "lang=en&depdate={}&aptcode1={}&rtdate={}&"
@@ -147,8 +145,7 @@ def get_search_page(values):
                                                              values[0],
                                                              values[3],
                                                              values[1]))
-        flight_type = "return"
-    return load_data(request), flight_type
+    return load_data(request)
 
 
 def get_flight_information(search_page):
@@ -168,23 +165,30 @@ def get_flight_information(search_page):
     count = 0
     com_out = []
     com_back = []
+    result = "No available flights found."
 
     try:
-        table = search_page[0].xpath("./body/form[@id='form1']/"
-                                     "div[@style='padding: 10px;']/"
-                                     "table[@id='flywiz']")[0]
+        table = search_page.xpath("./body/form[@id='form1']/"
+                                  "div[@style='padding: 10px;']/"
+                                  "table[@id='flywiz']")[0]
+
+        nested_table = table.xpath("//td/table[@id='flywiz_tblQuotes']")[0]
+
+        tr_tag_list = nested_table.xpath(".//tr[@class='selectedrow']|"
+                                         ".//tr[@class='notselrow']|"
+                                         ".//tr[th[text()='Coming Back']]/"
+                                         "th/text()")
     except IndexError:
-        result = "No available flights found."
         return result
-    nested_table = table.xpath("//td/table[@id='flywiz_tblQuotes']")[0]
 
-    tr_tag_list = nested_table.xpath(".//tr[@class='selectedrow']|"
-                                     ".//tr[@class='notselrow']|"
-                                     ".//tr[th[text()='Coming Back']]")
+    if tr_tag_list[:-1] == "Coming Back"\
+            or not tr_tag_list\
+            or len(tr_tag_list) == 1:
+        return result
 
+    # Division into flight_out and flight_back lists
     for tr_tag in tr_tag_list:
-        th_tag = tr_tag.xpath("./th[text()='Coming Back']")
-        if th_tag:
+        if tr_tag == "Coming Back":
             table_header = 1
             continue
         if count % 2 == 0:
@@ -197,13 +201,11 @@ def get_flight_information(search_page):
                 com_back.append((first_elem, second_elem))
         count += 1
 
-    if (not com_out or not com_back) and search_page[1] == "return"\
-            or not com_out and search_page[1] == "one-way":
-        result = "No available flights found."
-    if search_page[1] == "one-way":
-        result = one_way_flight(com_out)
-    elif com_back:
+    if "Coming Back" in tr_tag_list:
         result = return_flight(com_out, com_back)
+
+    else:
+        result = one_way_flight(com_out)
 
     return result
 
@@ -223,8 +225,8 @@ def one_way_flight(coming_out):
     """
 
     result = []
-    for tr_tag in coming_out:
 
+    for tr_tag in coming_out:
         fly_date = tuple(tr_tag[0].xpath("./td/text()")[0:3])
         dep_time = datetime.strptime(fly_date[0] + fly_date[1],
                                      "%a, %d %b %y%H:%M")
@@ -258,7 +260,9 @@ def return_flight(coming_out, coming_back):
 
     index = 0
     result = []
+    # Combination of each coming_out with each coming_back.
     combination = product(coming_out, coming_back)
+
     for flights in combination:
         for flight in flights:
             fly_date = flight[0].xpath("./td/text()")[0:2]
@@ -310,7 +314,7 @@ def get_data(*args):
             "Class": "Standard",
             "Price": "253.0 EUR"
         }]
-        For return flight results sorted by price.
+     Return flight results sorted by price.
     """
 
     url = "http://www.flybulgarien.dk/en/"
@@ -322,6 +326,7 @@ def get_data(*args):
         value = args
     search_page = get_search_page(value)
     fly_data = get_flight_information(search_page)
+
     if isinstance(fly_data, str):
         result = fly_data
     else:
@@ -360,6 +365,7 @@ def get_data(*args):
 
 
 if __name__ == '__main__':
+    print(get_data("CPH", "VAR", "02.03.2019", "13.03.2019"))
     print(get_data("CPH", "VAR", "02.07.2019"))
     print(get_data("CPH", "VAR", "02.07.2019", "13.07.2019"))
     print(get_data("BLL", "BOJ", "17.07.2019"))

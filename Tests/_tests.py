@@ -63,7 +63,7 @@ def test_get_flight_information_one_way():
         reader = page.read()
         tree = html.fromstring(reader)
 
-    search = tree, "one-way"
+    search = tree
     result = tuple([(datetime(2019, 7, 2, 21, 50),
                      datetime(2019, 7, 2, 1, 40),
                      ('Price:', '207.00 EUR'))]), "one-way"
@@ -78,8 +78,8 @@ def test_get_flight_information_one_way_empty():
         reader = page.read()
         tree = html.fromstring(reader)
 
-    search = tree, "one-way"
-    result = tuple([]), "one-way"
+    search = tree
+    result = "No available flights found."
     assert get_flight_information(search) == result
 
 
@@ -90,7 +90,7 @@ def test_get_flight_information_return():
         reader = page.read()
         tree = html.fromstring(reader)
 
-    search = tree, "return"
+    search = tree
     result = tuple([((datetime(2019, 7, 2, 21, 50), ('207.00', ' EUR')),
                      (datetime(2019, 7, 8, 16, 0), ('119.00', ' EUR'))),
                     ((datetime(2019, 7, 2, 21, 50), ('207.00', ' EUR')),
@@ -107,7 +107,7 @@ def test_get_flight_information_return_empty():
         reader = page.read()
         tree = html.fromstring(reader)
 
-    search = tree, "return"
+    search = tree
     result = "No available flights found."
     assert get_flight_information(search) == result
 
@@ -117,7 +117,7 @@ def test_get_flight_information_index_err():
                 "depdate=&aptcode1=&aptcode2=&paxcount=1&infcount="
 
     page = load_data(empty_req)
-    search = page, 'one-way'
+    search = page
     try:
         get_flight_information(search)
     except IndexError:
