@@ -233,7 +233,7 @@ def one_way_flight(coming_out):
                                      "%a, %d %b %y%H:%M")
 
         price = tr_tag[1].xpath("./td/text()")[0]
-        reg = re.compile(r'.(\d{2,3}\.\d{2})( EUR)')
+        reg = re.compile(r'(Price:)  (\d{2,3}\.\d{2} EUR)')
         parse_price = reg.findall(price)
 
         result.append((dep_time, arr_time,
@@ -332,7 +332,7 @@ def get_data(*args):
                                "Arrival time": flight[1].strftime("%H:%M"),
                                "Flight time": str(flight[1] - flight[0])[-7:],
                                "Class": "Standard",
-                               "Price": flight[2][0] + flight[2][1]
+                               flight[2][0]: flight[2][1]
                                }
                 flight_list.append(flight_dict)
         else:
@@ -360,8 +360,7 @@ def get_data(*args):
 
 
 if __name__ == '__main__':
-
     print(get_data("CPH", "VAR", "02.07.2019"))
     print(get_data("CPH", "VAR", "02.07.2019", "13.07.2019"))
-    print(get_data("CPH", "BOJ", "26.06.2019"))
+    print(get_data("BLL", "BOJ", "17.07.2019"))
     print(get_data())

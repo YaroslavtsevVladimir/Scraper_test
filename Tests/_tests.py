@@ -66,7 +66,7 @@ def test_get_flight_information_one_way():
     search = tree, "one-way"
     result = tuple([(datetime(2019, 7, 2, 21, 50),
                      datetime(2019, 7, 2, 1, 40),
-                     ('207.00', ' EUR'))]), "one-way"
+                     ('Price:', '207.00 EUR'))]), "one-way"
 
     assert get_flight_information(search) == result
 
@@ -126,12 +126,5 @@ def test_get_flight_information_index_err():
 
 # Test get_data(*args)
 def test_get_data():
-
-    result = [{"Date": "Tue, 02 Jul 19",
-               "Departure time": "21:50",
-               "Arrival time": "01:40",
-               "Flight time": "3:50:00",
-               "Class": "Standard",
-               "Price": "207.00 EUR"}]
-    result = json.dumps(result, indent=4)
-    assert get_data("CPH", "BOJ", "26.06.2019") == result
+    result = "No available flights found."
+    assert get_data("CPH", "BOJ", "26.04.2019") == result
