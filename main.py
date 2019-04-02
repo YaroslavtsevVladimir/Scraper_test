@@ -151,20 +151,16 @@ def get_search_page(values):
 def get_flight_information(search_page):
     """
     Get flight information for entered data in input_data(page).
-    Create com_out and com_back lists with <tr> tags for
-    Coming Out and Coming Back flights.
+    Create going_out and coming_back lists with <tr> tags for
+    Going Out and Coming Back flights.
 
     :param search_page: result of get_search_page(values)
 
-    :return: For one-way - one_way_flight(com_out)
-             For return - return_flight(com_out, com_back)
+    :return: For one-way - one_way_flight(going_out)
+             For return - return_flight(combination)
              If no information - return "No available flights found."
     """
 
-    table_header = 0
-    count = 0
-    com_out = []
-    com_back = []
     result = "No available flights found."
 
     try:
@@ -187,81 +183,71 @@ def get_flight_information(search_page):
         return result
 
     # Division into flight_out and flight_back lists
-    for tr_tag in tr_tag_list:
-        if tr_tag == "Coming Back":
-            table_header = 1
-            continue
-        if count % 2 == 0:
-            first_elem = tr_tag
-        else:
-            second_elem = tr_tag
-            if not table_header:
-                com_out.append((first_elem, second_elem))
-            elif table_header:
-                com_back.append((first_elem, second_elem))
-        count += 1
-
     if "Coming Back" in tr_tag_list:
-        result = return_flight(com_out, com_back)
-
+        half = tr_tag_list.index("Coming Back")
+        out = tr_tag_list[:half]
+        back = tr_tag_list[half + 1:]
+        going_out = (out[i:i+2] for i in range(len(out)) if i % 2 == 0)
+        coming_back = (back[i:i+2] for i in range(len(back)) if i % 2 == 0)
+        combination = product(going_out, coming_back)
+        result = return_flight(combination)
     else:
-        result = one_way_flight(com_out)
+        going_out = tuple(tr_tag_list)
+        result = one_way_flight(going_out)
 
     return result
 
 
-def one_way_flight(coming_out):
+def one_way_flight(going_out):
     """
     Getting necessary information about one-way flight:
     - departure date;
     - arrival date;
     - price.
 
-    :param coming_out: list with <tr> tags.
+    :param going_out: list with <tr> tags.
 
-    :return: tuple with flight information ((coming out))
+    :return: tuple with flight information ((going out))
              and flight type -> ((departure date, arrival date,
              price), "one-way")
     """
 
     result = []
 
-    for tr_tag in coming_out:
-        fly_date = tuple(tr_tag[0].xpath("./td/text()")[0:3])
-        dep_time = datetime.strptime(fly_date[0] + fly_date[1],
-                                     "%a, %d %b %y%H:%M")
+    for tr_tag in enumerate(going_out):
+        if tr_tag[0] % 2 == 0:
+            fly_date = tuple(tr_tag[1].xpath("./td/text()")[0:3])
+            dep_time = datetime.strptime(fly_date[0] + fly_date[1],
+                                         "%a, %d %b %y%H:%M")
 
-        arr_time = datetime.strptime(fly_date[0] + fly_date[2],
-                                     "%a, %d %b %y%H:%M")
+            arr_time = datetime.strptime(fly_date[0] + fly_date[2],
+                                         "%a, %d %b %y%H:%M")
+        else:
+            price = tr_tag[1].xpath("./td/text()")[0]
+            reg = re.compile(r'(Price:)  (\d{2,3}\.\d{2} EUR)')
+            parse_price = reg.findall(price)
 
-        price = tr_tag[1].xpath("./td/text()")[0]
-        reg = re.compile(r'(Price:)  (\d{2,3}\.\d{2} EUR)')
-        parse_price = reg.findall(price)
-
-        result.append((dep_time, arr_time,
-                       parse_price[0]))
+            result.append((dep_time, arr_time,
+                           parse_price[0]))
 
     return tuple(result), "one-way"
 
 
-def return_flight(coming_out, coming_back):
+def return_flight(combination):
     """
     Getting necessary information about return flight:
-    - departure date for Coming Out and Coming Back;
+    - departure date for Going Out and Coming Back;
     - price.
 
-    :param coming_out: list with <tr> tags.
-    :param coming_back: list with <tr> tags.
+    :param combination: list with <tr> tags.
 
-    :return: tuple with flight information ((coming out), (coming back))
+    :return: tuple with flight information ((going out), (coming back))
     and flight type -> (((departure date, price),
      (departure date, price)), "return")
     """
 
     index = 0
     result = []
-    # Combination of each coming_out with each coming_back.
-    combination = product(coming_out, coming_back)
 
     for flights in combination:
         for flight in flights:
