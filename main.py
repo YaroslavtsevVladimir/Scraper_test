@@ -133,7 +133,8 @@ def get_search_page(values):
     :return: load_data(request)
     """
 
-    if len(values) == 3:
+    if len(values) == 3\
+            or values[3] == "":
         request = ("https://apps.penguin.bg/fly/quote3.aspx?ow=&"
                    "lang=en&depdate={}&aptcode1={}&aptcode2={}&"
                    "paxcount=1&infcount=".format(values[2], values[0],
@@ -224,7 +225,7 @@ def one_way_flight(going_out):
                                          "%a, %d %b %y%H:%M")
         else:
             price = tr_tag[1].xpath("./td/text()")[0]
-            reg = re.compile(r'(Price:)  (\d{2,3}\.\d{2} EUR)')
+            reg = re.compile(r'(Price:)\s{2}(\d{2,3}\.\d{2} EUR)')
             parse_price = reg.findall(price)
 
             result.append((dep_time, arr_time,

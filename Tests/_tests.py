@@ -5,7 +5,6 @@
 from datetime import datetime
 import pytest
 import requests
-import json
 from lxml import html
 from main import load_data, get_iata, get_flight_information, get_data
 
