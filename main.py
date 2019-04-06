@@ -3,9 +3,10 @@
 """ Fly Bulgarian. Display of flight information. """
 
 
-from datetime import datetime
 import json
 import re
+import argparse
+from datetime import datetime
 from itertools import product
 import requests
 from lxml import html
@@ -75,54 +76,60 @@ def input_data(page):
     :return: tuple with data -> (dep_iata, arr_iata, dep_date, arr_date)
     """
 
-    iata_codes = get_iata(page)
-
-    bug_list = []
-    code_message = "must be correct IATA-code: {}".format(iata_codes)
-    date_message = "must be correct date format: DD.MM.YYYY"
-
     while True:
 
-        dep_iata = input("Enter a departure city IATA-code: ")
-        arr_iata = input("Enter a arrival city IATA-code: ")
+        dep_iata = input("Enter flight details\n "
+                         "in format departure city.arrival city."
+                         "departure date[,departure city.arrival city."
+                         "arrival date].number of seats: ")
 
-        dep_date = input("Enter a departure date in"
-                         " format DD.MM.YYYY: ")
-
-        arr_date = input("Enter a arrival date in format DD.MM.YYYY"
-                         " or skip it: ")
-
-        if (dep_iata not in iata_codes) or \
-                (not dep_iata.isupper()):
-            bug_list.append((dep_iata, code_message))
-
-        if (arr_iata not in iata_codes) or \
-                (not arr_iata.isupper()):
-            bug_list.append((arr_iata, code_message))
-
-        try:
-            dep_date = datetime.strptime(dep_date, "%d.%m.%Y")\
-                .date().strftime("%d.%m.%Y")
-
-        except ValueError:
-            bug_list.append((dep_date, date_message))
-
-        if arr_date != "":
-            try:
-                arr_date = datetime.strptime(arr_date, "%d.%m.%Y") \
-                    .date().strftime("%d.%m.%Y")
-            except ValueError:
-                bug_list.append((arr_date, date_message))
-
-        if bug_list:
-            for bug in bug_list:
-                print("Incorrect value: {} {}".format(bug[0], bug[1]))
-            bug_list.clear()
-        else:
-            return dep_iata, arr_iata, dep_date, arr_date
+        print(dep_iata.split(','))
+        print(dep_iata.split('.'))
+        is_data_valid(page)
 
 
-def get_search_page(values):
+def is_data_valid(page):
+    """
+
+    :param page:
+    :return:
+    """
+
+    iata_codes = get_iata(page)
+    # bug_list = []
+    # code_message = "must be correct IATA-code: {}".format(iata_codes)
+    # date_message = "must be correct date format: DD.MM.YYYY"
+    # if (dep_iata not in iata_codes) or \
+    #         (not dep_iata.isupper()):
+    #     bug_list.append((dep_iata, code_message))
+    #
+    # if (arr_iata not in iata_codes) or \
+    #         (not arr_iata.isupper()):
+    #     bug_list.append((arr_iata, code_message))
+    #
+    # try:
+    #     dep_date = datetime.strptime(dep_date, "%d.%m.%Y") \
+    #         .date().strftime("%d.%m.%Y")
+    #
+    # except ValueError:
+    #     bug_list.append((dep_date, date_message))
+    #
+    # if arr_date != "":
+    #     try:
+    #         arr_date = datetime.strptime(arr_date, "%d.%m.%Y") \
+    #             .date().strftime("%d.%m.%Y")
+    #     except ValueError:
+    #         bug_list.append((arr_date, date_message))
+    #
+    # if bug_list:
+    #     for bug in bug_list:
+    #         print("Incorrect value: {} {}".format(bug[0], bug[1]))
+    #     bug_list.clear()
+    # else:
+    #     return dep_iata, arr_iata, dep_date, arr_date
+
+
+def get_search_request(values):
     """
     Get search page for parsing flight information.
     Tag <iframe> attribute <src> is used as request.
@@ -135,11 +142,13 @@ def get_search_page(values):
 
     if len(values) == 3\
             or values[3] == "":
+
         request = ("https://apps.penguin.bg/fly/quote3.aspx?ow=&"
                    "lang=en&depdate={}&aptcode1={}&aptcode2={}&"
                    "paxcount=1&infcount=".format(values[2], values[0],
                                                  values[1]))
     else:
+
         request = ("https://apps.penguin.bg/fly/quote3.aspx?rt=&"
                    "lang=en&depdate={}&aptcode1={}&rtdate={}&"
                    "aptcode2={}&paxcount=1&infcount=".format(values[2],
@@ -183,7 +192,7 @@ def get_flight_information(search_page):
             or len(tr_tag_list) == 1:
         return result
 
-    # Division into flight_out and flight_back lists
+    # Division into going_out and coming_back lists
     if "Coming Back" in tr_tag_list:
         half = tr_tag_list.index("Coming Back")
         out = tr_tag_list[:half]
@@ -225,9 +234,8 @@ def one_way_flight(going_out):
                                          "%a, %d %b %y%H:%M")
         else:
             price = tr_tag[1].xpath("./td/text()")[0]
-            reg = re.compile(r'(Price:)\s{2}(\d{2,3}\.\d{2} EUR)')
+            reg = re.compile(r'(Price):\s{2}(\d{2,3}\.\d{2} EUR)')
             parse_price = reg.findall(price)
-
             result.append((dep_time, arr_time,
                            parse_price[0]))
 
@@ -261,14 +269,80 @@ def return_flight(combination):
 
             if index % 2 == 0:
                 out = (dep_time, parse_price[0])
+                departure_date = dep_time
             else:
+                arrival_date = dep_time
+                if departure_date > arrival_date:
+                    continue
                 back = (dep_time, parse_price[0])
                 result.append((out, back))
             index += 1
     return tuple(result), "return"
 
 
-def get_data(*args):
+def data_generation(fly_data):
+    """
+
+    :param fly_data:
+
+    :return: if get_flight_information(search_page) return
+    "No available flights found." or no valid dates for
+     return flight - return "No available flights found."
+     else return flight information in json format:
+     - one-way flight:
+        [{
+            "Date": "Sat, 06 Jul 19",
+            "Departure time": "21:50",
+            "Arrival time": "01:40",
+            "Flight time": "3:50:00",
+            "Class": "Standard",
+            "Price": "160.00 EUR"
+        }];
+     - return flight:
+        [{
+            "Departure date": "Sat, 06 Jul 19 21:50",
+            "Arrival date": "Sat, 13 Jul 19 16:00",
+            "Class": "Standard",
+            "Price": "253.0 EUR"
+        }].
+     Return flight results sorted by price.
+    """
+
+    if fly_data[1] == "one-way":
+        price = fly_data[0][0][2][0]
+        fly_dict_key = ("Date", "Departure time", "Arrival time",
+                        "Flight time", "Class", price)
+
+        fly_dict_value = (
+            (flight[0].strftime("%a, %d %b %y"),
+             flight[0].strftime("%H:%M"),
+             flight[1].strftime("%H:%M"),
+             str(flight[1] - flight[0])[-7:],
+             "Standard",
+             flight[2][1]) for flight in fly_data[0])
+
+    else:
+        fly_dict_key = ("Departure date", "Arrival date", "Class",
+                        "Price")
+
+        fly_dict_value = (
+            (flight[0][0].strftime("%a, %d %b %y %H:%M"),
+             flight[1][0].strftime("%a, %d %b %y %H:%M"),
+             "Standard",
+             str(float(flight[0][1][0]) +
+                 float(flight[1][1][0])) +
+             flight[0][1][1]) for flight in fly_data[0])
+
+    flight_list = ({key: value for key, value in zip(fly_dict_key, values)}
+                   for values in fly_dict_value)
+
+    result = sorted(flight_list, key=lambda price_key:
+                    max(price_key.items()))
+    result = json.dumps(result, indent=4)
+    return result
+
+
+def scrape(*args):
     """
     Main function. Call other functions and
     generates flight information in json format.
@@ -281,79 +355,28 @@ def get_data(*args):
                  "CPH", "VAR", "02.07.2019".
     Parameters transmitted only in that order.
 
-    :return: if get_flight_information(search_page) return
-    "No available flights found." or no valid dates for
-     return flight - return "No available flights found."
-     else return flight information in json format:
-     one-way flight:
-        [{
-            "Date": "Sat, 06 Jul 19",
-            "Departure time": "21:50",
-            "Arrival time": "01:40",
-            "Flight time": "3:50:00",
-            "Class": "Standard",
-            "Price": "160.00 EUR"
-        }]
-     return flight:
-        [{
-            "Departure date": "Sat, 06 Jul 19 21:50",
-            "Arrival date": "Sat, 13 Jul 19 16:00",
-            "Class": "Standard",
-            "Price": "253.0 EUR"
-        }]
-     Return flight results sorted by price.
+    :return:
     """
 
     url = "http://www.flybulgarien.dk/en/"
-    flight_list = []
+
     data = load_data(url)
     if not args:
         value = input_data(data)
     else:
         value = args
-    search_page = get_search_page(value)
-    fly_data = get_flight_information(search_page)
-
-    if isinstance(fly_data, str):
-        result = fly_data
+    search_page = get_search_request(value)
+    flights = get_flight_information(search_page)
+    if isinstance(flights, str):
+        result = flights
     else:
-        if fly_data[1] == "one-way":
-            for flight in fly_data[0]:
-                flight_dict = {"Date": flight[0].strftime("%a, %d %b %y"),
-                               "Departure time": flight[0].strftime("%H:%M"),
-                               "Arrival time": flight[1].strftime("%H:%M"),
-                               "Flight time": str(flight[1] - flight[0])[-7:],
-                               "Class": "Standard",
-                               flight[2][0]: flight[2][1]
-                               }
-                flight_list.append(flight_dict)
-        else:
-            for flight in fly_data[0]:
-                wrong_date = flight[0][0] > flight[1][0]
-                if wrong_date:
-                    continue
-                else:
-                    price = str(float(flight[0][1][0])
-                                + float(flight[1][1][0]))
-                    flight_dict = {"Departure date":
-                                   flight[0][0].strftime("%a, %d %b %y %H:%M"),
-                                   "Arrival date":
-                                   flight[1][0].strftime("%a, %d %b %y %H:%M"),
-                                   "Class": "Standard",
-                                   "Price": price + flight[0][1][1]}
-                    flight_list.append(flight_dict)
-        if not flight_list:
-            result = "No available flights found."
-        else:
-            result = sorted(flight_list, key=lambda price_key:
-                            max(price_key.items()))
-            result = json.dumps(result, indent=4)
+        result = data_generation(flights)
     return result
 
 
 if __name__ == '__main__':
-    print(get_data("CPH", "VAR", "02.03.2019", "13.03.2019"))
-    print(get_data("CPH", "VAR", "02.07.2019"))
-    print(get_data("CPH", "VAR", "02.07.2019", "13.07.2019"))
-    print(get_data("BLL", "BOJ", "17.07.2019"))
-    print(get_data())
+    print(scrape("CPH", "VAR", "02.03.2019", "13.03.2019"))
+    print(scrape("CPH", "VAR", "02.07.2019"))
+    print(scrape("CPH", "VAR", "02.07.2019", "13.07.2019"))
+    print(scrape("BLL", "BOJ", "17.07.2019"))
+    # print(scrape())

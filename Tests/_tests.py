@@ -1,12 +1,12 @@
 #!
 
-""" Test for Fly Bulgarien scraper. """
+""" Test for Fly Bulgarian scraper."""
 
 from datetime import datetime
 import pytest
 import requests
 from lxml import html
-from main import load_data, get_iata, get_flight_information, get_data
+from main import load_data, get_iata, get_flight_information, scrape
 
 
 # Test load_data()
@@ -27,6 +27,7 @@ def test_load_data_http_err():
 
 def test_load_data_connect_err():
     connect_url = "http://www.google"
+
     with pytest.raises(requests.exceptions.ConnectionError) as response:
         load_data(connect_url)
     print(response)
@@ -34,7 +35,7 @@ def test_load_data_connect_err():
 
 # Test get_iata()
 def test_get_iata():
-    main_page = "Fly Bulgarien.html"
+    main_page = "Static_pages/Fly Bulgarien.html"
     with open(main_page, "r") as page:
         reader = page.read()
         tree = html.fromstring(reader)
@@ -56,39 +57,36 @@ def test_get_iata_err():
 
 # Test get_flight_information()
 def test_get_flight_information_one_way():
-    one_way_page = "one_way_flight.html"
+    one_way_page = "Static_pages/one_way_flight.html"
 
     with open(one_way_page, "r") as page:
         reader = page.read()
         tree = html.fromstring(reader)
-
     search = tree
     result = tuple([(datetime(2019, 7, 2, 21, 50),
                      datetime(2019, 7, 2, 1, 40),
-                     ('Price:', '207.00 EUR'))]), "one-way"
+                     ('Price', '207.00 EUR'))]), "one-way"
 
     assert get_flight_information(search) == result
 
 
 def test_get_flight_information_one_way_empty():
-    one_way_page = "one_way_flight_empty.html"
+    one_way_page = "Static_pages/one_way_flight_empty.html"
 
     with open(one_way_page, "r") as page:
         reader = page.read()
         tree = html.fromstring(reader)
-
     search = tree
     result = "No available flights found."
     assert get_flight_information(search) == result
 
 
 def test_get_flight_information_return():
-    return_page = "return_flight.html"
+    return_page = "Static_pages/return_flight.html"
 
     with open(return_page, "r") as page:
         reader = page.read()
         tree = html.fromstring(reader)
-
     search = tree
     result = tuple([((datetime(2019, 7, 2, 21, 50), ('207.00', ' EUR')),
                      (datetime(2019, 7, 8, 16, 0), ('119.00', ' EUR'))),
@@ -100,7 +98,7 @@ def test_get_flight_information_return():
 
 
 def test_get_flight_information_return_empty():
-    return_page = "return_flight_empty.html"
+    return_page = "Static_pages/return_flight_empty.html"
 
     with open(return_page, "r") as page:
         reader = page.read()
@@ -126,4 +124,4 @@ def test_get_flight_information_index_err():
 # Test get_data(*args)
 def test_get_data():
     result = "No available flights found."
-    assert get_data("CPH", "BOJ", "26.04.2019") == result
+    assert scrape("CPH", "BOJ", "26.04.2019") == result
