@@ -2,7 +2,6 @@
 
 """ Fly Bulgarian. Display of flight information. """
 
-
 import json
 import re
 import argparse
@@ -99,6 +98,7 @@ def is_data_valid(page):
     # bug_list = []
     # code_message = "must be correct IATA-code: {}".format(iata_codes)
     # date_message = "must be correct date format: DD.MM.YYYY"
+
     # if (dep_iata not in iata_codes) or \
     #         (not dep_iata.isupper()):
     #     bug_list.append((dep_iata, code_message))
@@ -140,22 +140,25 @@ def get_search_request(values):
     :return: load_data(request)
     """
 
-    if len(values) == 3\
-            or values[3] == "":
+    data = {"ow": "",
+            "lang": "en",
+            "depdate": values[2],
+            "aptcode1": values[0],
+            "aptcode2": values[1],
+            "paxcount": 1,
+            "infcount": ""}
 
-        request = ("https://apps.penguin.bg/fly/quote3.aspx?ow=&"
-                   "lang=en&depdate={}&aptcode1={}&aptcode2={}&"
-                   "paxcount=1&infcount=".format(values[2], values[0],
-                                                 values[1]))
-    else:
+    if len(values) > 3:
+        data["rt"] = data.pop("ow")
+        data.update(rtdate=values[3])
 
-        request = ("https://apps.penguin.bg/fly/quote3.aspx?rt=&"
-                   "lang=en&depdate={}&aptcode1={}&rtdate={}&"
-                   "aptcode2={}&paxcount=1&infcount=".format(values[2],
-                                                             values[0],
-                                                             values[3],
-                                                             values[1]))
-    return load_data(request)
+    request = requests.get("https://apps.penguin.bg/fly/quote3.aspx?",
+                           params=data)
+
+    tree = html.fromstring(request.content)
+    result = tree
+
+    return result
 
 
 def get_flight_information(search_page):
@@ -310,10 +313,10 @@ def data_generation(fly_data):
 
     if fly_data[1] == "one-way":
         price = fly_data[0][0][2][0]
-        fly_dict_key = ("Date", "Departure time", "Arrival time",
-                        "Flight time", "Class", price)
+        fly_dict_keys = ("Date", "Departure time", "Arrival time",
+                         "Flight time", "Class", price)
 
-        fly_dict_value = (
+        fly_dict_values = (
             (flight[0].strftime("%a, %d %b %y"),
              flight[0].strftime("%H:%M"),
              flight[1].strftime("%H:%M"),
@@ -322,10 +325,10 @@ def data_generation(fly_data):
              flight[2][1]) for flight in fly_data[0])
 
     else:
-        fly_dict_key = ("Departure date", "Arrival date", "Class",
-                        "Price")
+        fly_dict_keys = ("Departure date", "Arrival date", "Class",
+                         "Price")
 
-        fly_dict_value = (
+        fly_dict_values = (
             (flight[0][0].strftime("%a, %d %b %y %H:%M"),
              flight[1][0].strftime("%a, %d %b %y %H:%M"),
              "Standard",
@@ -333,8 +336,8 @@ def data_generation(fly_data):
                  float(flight[1][1][0])) +
              flight[0][1][1]) for flight in fly_data[0])
 
-    flight_list = ({key: value for key, value in zip(fly_dict_key, values)}
-                   for values in fly_dict_value)
+    flight_list = ({key: value for key, value in zip(fly_dict_keys, values)}
+                   for values in fly_dict_values)
 
     result = sorted(flight_list, key=lambda price_key:
                     max(price_key.items()))
