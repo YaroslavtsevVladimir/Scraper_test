@@ -7,6 +7,7 @@ import pytest
 import requests
 from lxml import html
 from main import send_request, get_iata, get_flight_information, scrape
+from classes import NoResultException
 
 
 # Test load_data()
@@ -104,7 +105,7 @@ def test_get_flight_information_return_empty():
     assert get_flight_information(search) == result
 
 
-def test_get_flight_information_index_err():
+def test_get_flight_information_err():
     empty_req = "https://apps.penguin.bg/fly/quote3.aspx?ow=&lang=en&" \
                 "depdate=&aptcode1=&aptcode2=&paxcount=1&infcount="
 
@@ -112,7 +113,7 @@ def test_get_flight_information_index_err():
     search = page
     try:
         get_flight_information(search)
-    except IndexError:
+    except (IndexError, NoResultException):
         pytest.fail("No available flights found.")
 
 

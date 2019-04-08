@@ -220,7 +220,6 @@ def get_search_request(values):
 
     tree = html.fromstring(request.content)
     result = tree
-
     return result
 
 
@@ -313,7 +312,7 @@ def one_way_flight(going_out):
 def return_flight(combination):
     """
     Getting necessary information about return flight:
-    - Information about going out and coming back flights;
+    - information about cities for going out and coming back flights;
     - departure date for going out and coming back;
     - price.
 
@@ -426,7 +425,8 @@ def scrape(*args):
     passed to the get_search_request(values), else called input_data().
 
     :param args: flight parameters: departure IATA-code,
-                 Arrival IATA-code, Departure date, Arrival Date, number of seats.
+                 Arrival IATA-code, Departure date, Arrival Date,
+                  number of seats.
     For example: "CPH", "VAR", "02.07.2019", "13.07.2019", "1"
                  "CPH", "VAR", "02.07.2019", "3".
     Parameters transmitted only in that order.
