@@ -16,7 +16,7 @@ def send_request(*args):
     """
     Load html page from url.
 
-    :param args: request type or url ,
+    :param args: request type or url,
                  headers and data
 
     :return: html page as an <html object>
@@ -158,7 +158,7 @@ def is_data_valid(values):
         num_seats = int(values[-1])
         if not 0 < num_seats <= 8:
             raise InvalidData()
-    except InvalidData:
+    except (InvalidData, ValueError):
         return print("Incorrect numbers of seats. Must be in [1,8]")
 
     # Valid date check
@@ -183,7 +183,8 @@ def is_data_valid(values):
                 arr_date = arr_date.strftime("%d.%m.%Y")
             else:
                 raise InvalidData
-            result = (values[0], values[1], dep_date, num_seats, arr_date)
+
+            result = (values[0], values[1], dep_date, arr_date, num_seats)
     except (InvalidData, ValueError, IndexError):
         return print("Incorrect date format. Must be DD/MM/YYYY,"
                      "and date should not be greater than {} "
@@ -254,7 +255,7 @@ def get_flight_information(search_page):
                 or not tr_tag_list\
                 or len(tr_tag_list) == 1:
 
-            raise NoResultException()
+            raise NoResultException
 
     except (IndexError, NoResultException):
         return result
@@ -312,14 +313,15 @@ def one_way_flight(going_out):
 def return_flight(combination):
     """
     Getting necessary information about return flight:
-    - departure date for Going Out and Coming Back;
+    - Information about going out and coming back flights;
+    - departure date for going out and coming back;
     - price.
 
     :param combination: list with <tr> tags.
 
     :return: tuple with flight information ((going out), (coming back))
-    and flight type -> (((departure date, departure city, arrival city, price),
-     (arrival date, departure city, arrival city, price)), "return")
+    and flight type -> (((departure city, arrival city, departure date, price),
+     (departure city, arrival city, arrival date, price)), "return")
     """
 
     index = 0
@@ -349,8 +351,10 @@ def return_flight(combination):
 
 def data_generation(fly_data):
     """
+    Data processing and formation in json format.
 
-    :param fly_data:
+    :param fly_data: result of one_way_flight(going_out) or
+           return_flight(combination)
 
     :return: if get_flight_information(search_page) return
     "No available flights found." or no valid dates for
@@ -419,12 +423,12 @@ def scrape(*args):
     Main function. Call other functions and
     generates flight information in json format.
     If function is called with arguments *args, then they are
-    passed to the get_search_page(values), else called input_data(page).
+    passed to the get_search_request(values), else called input_data().
 
-    :param args: Flight parameters: departure IATA-code,
-                 Arrival IATA-code, Departure date, Arrival Date.
-    For example: "CPH", "VAR", "02.07.2019", "13.07.2019",
-                 "CPH", "VAR", "02.07.2019".
+    :param args: flight parameters: departure IATA-code,
+                 Arrival IATA-code, Departure date, Arrival Date, number of seats.
+    For example: "CPH", "VAR", "02.07.2019", "13.07.2019", "1"
+                 "CPH", "VAR", "02.07.2019", "3".
     Parameters transmitted only in that order.
 
     :return: information about flights in json format or
