@@ -118,6 +118,8 @@ def test_get_flight_information_err():
 
 
 # Test get_data(*args)
-def test_get_data():
+def test_scrape():
     result = "No available flights found."
-    assert scrape("CPH", "BOJ", "26.04.2019") == result
+    assert scrape(**{'dep_city': "BLL", 'arr_city': "CPH",
+                     'dep_date': "13.03.2019",
+                     'arr_date': "15.05.2019", 'num_seats': "2"}) == result
