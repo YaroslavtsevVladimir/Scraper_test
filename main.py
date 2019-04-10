@@ -87,7 +87,7 @@ def input_data():
     until valid values are entered.
 
     :return: dict with data -> (departure IATA-code,
-             arrival IATA-code, departure date[, arrival date],
+             arrival IATA-code, departure date, arrival date,
              number of seats)
     """
 
@@ -98,13 +98,13 @@ def input_data():
                            "[,arrival date]\n in format "
                            "CPH,BLL,15.04.2019,2: ")
 
-        data_list = tuple(user_input.split(','))
+        data_list_values = tuple(user_input.split(','))
 
         data_dict_keys = ('dep_city', 'arr_city', 'dep_date',
                           'num_seats', 'arr_date')
 
         user_data = {key: value for key, value in
-                     zip_longest(data_dict_keys, data_list)}
+                     zip_longest(data_dict_keys, data_list_values)}
         try:
             is_data_valid(user_data)
         except InvalidData as error:
@@ -145,10 +145,12 @@ def is_data_valid(user_data):
                           'uppercase symbols.')
 
     # Valid number of seats check
-    num_seats = int(user_data['num_seats'])
-    if num_seats not in range(1, 9):
-        raise InvalidData('Incorrect numbers of seats. Must be in [1,8]')
-
+    try:
+        num_seats = int(user_data['num_seats'])
+        if num_seats not in range(1, 9):
+            raise InvalidData('Incorrect numbers of seats. Must be in [1,8]')
+    except ValueError:
+        raise InvalidData('Incorrect number of seats value. Must be in [1,8]')
     # Valid date check
     try:
         dep_date = datetime.strptime(user_data['dep_date'], '%d.%m.%Y').date()
@@ -161,8 +163,7 @@ def is_data_valid(user_data):
                                   ' departure date')
 
     except ValueError:
-        raise InvalidData('Incorrect date format. Must be DD/MM/YYYY,'
-                          'and date should not be greater than and.')
+        raise InvalidData('Incorrect date format. Must be DD.MM.YYYY.')
 
     return user_data
 
@@ -313,6 +314,8 @@ def data_generation(fly_data, user_data):
      Return flight results sorted by price.
     """
 
+    num_of_tickets = user_data['num_seats']
+
     if user_data['arr_date']:
         fly_dict_keys = ('Going out', 'Departure date',
                          'Coming back', 'Arrival date',
@@ -323,25 +326,27 @@ def data_generation(fly_data, user_data):
              flight[0]['dep_date'].strftime('%a, %d %b %y %H:%M'),
              '{} - {}'.format(flight[1]['dep_city'], flight[1]['arr_city']),
              flight[1]['dep_date'].strftime('%a, %d %b %y %H:%M'),
-             str(flight[0]['price'][0] + flight[1]['price'][0])
-             + flight[0]['price'][1]) for flight in fly_data)
+             str((flight[0]['price'][0] + flight[1]['price'][0])
+                 * num_of_tickets)
+             + flight[0]['price'][1]) for flight in fly_data
+            if flight[0]['dep_date'] < flight[1]['dep_date'])
     else:
         fly_dict_keys = ('Date', 'Departure time', 'Arrival time',
-                         'Flight time', 'price')
+                         'Flight time', 'Price')
 
         fly_dict_values = (
             (flight[0]['dep_date'].strftime('%a, %d %b %y'),
              flight[0]['dep_date'].strftime('%H:%M'),
              flight[0]['arr_date'].strftime('%H:%M'),
              str(flight[0]['arr_date'] - flight[0]['dep_date'])[-7:],
-             str(flight[0]['price'][0])
+             str(flight[0]['price'][0] * num_of_tickets)
              + flight[0]['price'][1]) for flight in fly_data)
 
     flight_list = ({key: value for key, value in zip(fly_dict_keys, values)}
                    for values in fly_dict_values)
 
     result = sorted(flight_list, key=lambda price_key:
-                    max(price_key.items()))
+                    float(price_key['Price'].split()[0]))
     result = json.dumps(result, indent=4)
     return result
 
@@ -366,6 +371,7 @@ def scrape():
 
     search_page = get_search_page(user_data)
     flights = get_flight_information(search_page, user_data)
+
     if isinstance(flights, str):
         result = flights
     else:
