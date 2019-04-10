@@ -2,15 +2,17 @@
 """ Fly Bulgarian. Display of flight information. """
 
 import argparse
+from datetime import datetime
+from itertools import product, zip_longest
 import json
 import re
-from itertools import product, zip_longest
-from datetime import datetime
 import requests
 from lxml import html
 
-
 URL = 'https://apps.penguin.bg/fly/quote3.aspx'
+VALID_IATA = re.compile(r'^[A-Z]{3}$')
+REG_PRICE = re.compile(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)')
+REG_IATA = re.compile(r'[A-Z]{3}')
 
 
 class NoResultException(Exception):
@@ -84,7 +86,7 @@ def input_data():
     User input and validation check. Input continues
     until valid values are entered.
 
-    :return: tuple with data -> (departure IATA-code,
+    :return: dict with data -> (departure IATA-code,
              arrival IATA-code, departure date[, arrival date],
              number of seats)
     """
@@ -137,9 +139,8 @@ def is_data_valid(user_data):
         raise InvalidData('No parameters specified.')
 
     # Valid IATA-code check
-    valid_iata = re.compile(r'^[A-Z]{3}$')
-    if not valid_iata.match(user_data['dep_city']) \
-            or not valid_iata.match(user_data['arr_city']):
+    if not VALID_IATA.match(user_data['dep_city']) \
+            or not VALID_IATA.match(user_data['arr_city']):
         raise InvalidData('Incorrect IATA-code. Must consist of three'
                           'uppercase symbols.')
 
@@ -153,7 +154,8 @@ def is_data_valid(user_data):
         dep_date = datetime.strptime(user_data['dep_date'], '%d.%m.%Y').date()
 
         if user_data['arr_date']:
-            arr_date = datetime.strptime(user_data['arr_date'], '%d.%m.%Y').date()
+            arr_date = datetime.strptime(user_data['arr_date'],
+                                         '%d.%m.%Y').date()
             if arr_date < dep_date:
                 raise InvalidData('Arrival date should not be more than'
                                   ' departure date')
@@ -211,19 +213,19 @@ def parse_data(info, price):
     arr_date = datetime.strptime(fly_date + arr_time,
                                  "%a, %d %b %y%H:%M")
 
-    reg_iata = re.compile(r'[A-Z]{3}')
-    dep_iata = reg_iata.search(dep_airport).group()
-    arr_iata = reg_iata.search(arr_airport).group()
+    dep_iata = REG_IATA.search(dep_airport).group()
+    arr_iata = REG_IATA.search(arr_airport).group()
 
     price_elem = price.xpath('./td[contains(text(), "Price")]/text()')[0]
-    reg_price = re.compile(r'Price:\s{2}(\d{2,3}\.\d{2}) EUR')
-    parse_price = reg_price.search(price_elem).group(1)
+
+    parse_price = REG_PRICE.search(price_elem).group(1)
+    currency = REG_PRICE.search(price_elem).group(2)
 
     result = {'dep_city': dep_iata,
               'arr_city': arr_iata,
               'dep_date': dep_date,
               'arr_date': arr_date,
-              'price': float(parse_price)}
+              'price': (float(parse_price), currency)}
 
     return result
 
@@ -242,22 +244,38 @@ def get_flight_information(search_page, user_data):
              If no information - return "No available flights found."
     """
 
-    result = 'No available flights found.'
-    flights = [[], []] if user_data['arr_date'] else [[]]
-    outbound_info = search_page.xpath('.//table//tr[contains(@id, "_rinf")]')
-    outbound_prices = search_page.xpath('.//table//tr[contains(@id, "_rprc")]')
+    try:
+        flights = [[], []] if user_data['arr_date'] else [[]]
+        outbound_info = search_page.xpath('.//table//tr[contains(@id,'
+                                          ' "_rinf")]')
+        outbound_prices = search_page.xpath('.//table//tr[contains(@id,'
+                                            ' "_rprc")]')
 
-    for info, price in zip(outbound_info, outbound_prices):
-        flights[0].append(parse_data(info, price))
+        if not outbound_info:
+            raise NoResultException('No outbound flights')
 
-    if user_data['arr_date']:
-        inbound_info = search_page.xpath('.//table//tr[contains(@id, "irinf")]')
-        inbound_prices = search_page.xpath('.//table//tr[contains(@id, "irprc")]')
-        for info, price in zip(inbound_info, inbound_prices):
-            flights[1].append(parse_data(info, price))
+        for info, price in zip(outbound_info, outbound_prices):
+            flights[0].append(parse_data(info, price))
+
+    except NoResultException:
+        return 'No outbound flights'
+
+    try:
+        if user_data['arr_date']:
+            inbound_info = search_page.xpath('.//table//tr[contains(@id,'
+                                             ' "irinf")]')
+            inbound_prices = search_page.xpath('.//table//tr[contains(@id,'
+                                               ' "irprc")]')
+
+            if not inbound_info:
+                raise NoResultException('No inbounds')
+
+            for info, price in zip(inbound_info, inbound_prices):
+                flights[1].append(parse_data(info, price))
+    except NoResultException:
+        return 'No inbound flights'
 
     combination = product(*flights)
-
     return combination
 
 
@@ -265,8 +283,7 @@ def data_generation(fly_data, user_data):
     """
     Data processing and formation in json format.
 
-    :param fly_data: result of one_way_flight(going_out) or
-           return_flight(combination)
+    :param fly_data: result of parse_data(info, price)
     :param user_data: flight parameters entered by the user
 
     :return: if get_flight_information(search_page) return
@@ -306,8 +323,8 @@ def data_generation(fly_data, user_data):
              flight[0]['dep_date'].strftime('%a, %d %b %y %H:%M'),
              '{} - {}'.format(flight[1]['dep_city'], flight[1]['arr_city']),
              flight[1]['dep_date'].strftime('%a, %d %b %y %H:%M'),
-             str(flight[0]['price'] +
-                 flight[1]['price'])) for flight in fly_data)
+             str(flight[0]['price'][0] + flight[1]['price'][0])
+             + flight[0]['price'][1]) for flight in fly_data)
     else:
         fly_dict_keys = ('Date', 'Departure time', 'Arrival time',
                          'Flight time', 'price')
@@ -317,7 +334,8 @@ def data_generation(fly_data, user_data):
              flight[0]['dep_date'].strftime('%H:%M'),
              flight[0]['arr_date'].strftime('%H:%M'),
              str(flight[0]['arr_date'] - flight[0]['dep_date'])[-7:],
-             flight[0]['price']) for flight in fly_data)
+             str(flight[0]['price'][0])
+             + flight[0]['price'][1]) for flight in fly_data)
 
     flight_list = ({key: value for key, value in zip(fly_dict_keys, values)}
                    for values in fly_dict_values)

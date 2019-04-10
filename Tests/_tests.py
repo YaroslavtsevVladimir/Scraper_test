@@ -6,8 +6,13 @@ from datetime import datetime
 import pytest
 import requests
 from lxml import html
-from main import send_request, get_flight_information, scrape,\
+from main import send_request, get_flight_information,\
     NoResultException
+
+USER_DATA = {"dep_city": "CPH", "arr_city": "VAR",
+             "dep_date": '15.07.2019',
+             "arr_date": "20.07.2019",
+             "num_seats": "2"}
 
 
 # Test load_data()
@@ -53,9 +58,9 @@ def test_get_flight_information_one_way():
     search = tree
     result = tuple([(datetime(2019, 7, 2, 21, 50),
                      datetime(2019, 7, 2, 1, 40),
-                     ('Price', '207.00 EUR'))]), "one-way"
+                     ('Price', '207.00 EUR'))])
 
-    assert get_flight_information(search) == result
+    assert get_flight_information(search, USER_DATA) == result
 
 
 def test_get_flight_information_one_way_empty():
@@ -66,7 +71,7 @@ def test_get_flight_information_one_way_empty():
         tree = html.fromstring(reader)
     search = tree
     result = 'No available flights found.'
-    assert get_flight_information(search) == result
+    assert get_flight_information(search, USER_DATA) == result
 
 
 def test_get_flight_information_return():
@@ -83,10 +88,9 @@ def test_get_flight_information_return():
                     ((datetime(2019, 7, 2, 21, 50), 'Copenhagen (CPH)',
                       'Varna (VAR)', ('207.00', ' EUR')),
                      (datetime(2019, 7, 15, 16, 0), 'Burgas (BOJ)',
-                      'Billund (BLL)', ('185.00', ' EUR')))]),\
-        'return'
+                      'Billund (BLL)', ('185.00', ' EUR')))])
 
-    assert get_flight_information(search) == result
+    assert get_flight_information(search, USER_DATA) == result
 
 
 def test_get_flight_information_return_empty():
@@ -98,7 +102,7 @@ def test_get_flight_information_return_empty():
 
     search = tree
     result = 'No available flights found.'
-    assert get_flight_information(search) == result
+    assert get_flight_information(search, USER_DATA) == result
 
 
 def test_get_flight_information_err():
@@ -109,7 +113,7 @@ def test_get_flight_information_err():
     page = send_request(empty_req, data)
     search = page
     try:
-        get_flight_information(search)
+        get_flight_information(search, USER_DATA)
     except (IndexError, NoResultException):
         pytest.fail('No available flights found.')
 
