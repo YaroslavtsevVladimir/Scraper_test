@@ -7,25 +7,12 @@ import pytest
 import requests
 from lxml import html
 from main import send_request, get_flight_information,\
-    is_data_valid, NoResultException
+    is_data_valid, InvalidData
 
 USER_DATA = {"dep_city": "CPH", "arr_city": "VAR",
              "dep_date": '15.07.2019',
              "arr_date": "20.07.2019",
              "num_seats": "2"}
-
-d1 = {'name': 'hey', 'price': '1000.0 EUR'}
-d2 = {'name': 'hey', 'price': '900.0 EUR'}
-d3 = {'name': 'hey', 'price': '2000.0 EUR'}
-d4 = {'name': 'hey', 'price': '2000.0 EUR'}
-d5 = {'name': 'hey', 'price': '400.0 EUR'}
-lis = [d1, d2, d3, d4, d5]
-
-res = sorted(lis, key=lambda price_key: float(price_key['price'].split()[0]))
-print(res)
-
-print(float(d1['price'][:6]) > float(d2['price'].split()[0]))
-print(float(d5['price'].split()[0]))
 
 
 # Test load_data()
@@ -63,23 +50,62 @@ def test_send_request_connect_err():
 
 # Test is_data_valid()
 def test_is_data_valid_few_args():
-    pass
+    user_data = {'dep_city': 'CPH',
+                 'arr_city': 'VAR',
+                 'dep_date': None,
+                 'arr_date': None,
+                 'num_seats': None
+                 }
+
+    with pytest.raises(InvalidData):
+        is_data_valid(user_data)
 
 
 def test_is_data_valid_many_args():
-    pass
+    user_data = {'dep_city': 'CPH',
+                 'arr_city': 'VAR',
+                 'dep_date': '15.07.1229',
+                 'arr_date': '16.07.2019',
+                 'num_seats': None,
+                 'something': 24,
+                 'date': '15.12.2020'
+                 }
+
+    with pytest.raises(InvalidData):
+        is_data_valid(user_data)
 
 
 def test_is_data_valid_iata_err():
-    pass
+    user_data = {'dep_city': 'cph',
+                 'arr_city': 'VAR',
+                 'dep_date': '15.07.2019',
+                 'arr_date': '20.07.2019',
+                 'num_seats': 2}
+
+    with pytest.raises(InvalidData):
+        is_data_valid(user_data)
 
 
 def test_is_data_valid_date_err():
-    pass
+    user_data = {'dep_city': 'CPH',
+                 'arr_city': 'VAR',
+                 'dep_date': '15.15.2019',
+                 'arr_date': '20.07.2019',
+                 'num_seats': 2}
+
+    with pytest.raises(InvalidData):
+        is_data_valid(user_data)
 
 
 def test_is_data_valid_num_seats_err():
-    pass
+    user_data = {'dep_city': 'cph',
+                 'arr_city': 'VAR',
+                 'dep_date': '15.07.2019',
+                 'arr_date': '20.07.2019',
+                 'num_seats': 25}
+
+    with pytest.raises(InvalidData):
+        is_data_valid(user_data)
 
 
 # Test get_flight_information()
@@ -173,16 +199,3 @@ def test_get_flight_information_return_back_empty():
     search = tree
     result = 'No inbound flights'
     assert get_flight_information(search, USER_DATA) == result
-
-
-def test_get_flight_information_err():
-    empty_req = 'https://apps.penguin.bg/fly/quote3.aspx?'
-    data = {'ow': '', 'depdate': '', 'aptcode1': '', 'aptcode2': '',
-            'paxcount': '', 'infcount': '', 'lang': 'en'}
-
-    page = send_request(empty_req, data)
-    search = page
-    try:
-        get_flight_information(search, USER_DATA)
-    except NoResultException:
-        pytest.fail('No available flights found.')

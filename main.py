@@ -30,9 +30,10 @@ def get_args():
                    Arrival IATA-code, Departure date, Arrival Date,
                    number of seats.
     For example: -dep_city=CPH -arr_city=BOJ -dep_date=01.07.2019
-                 -arr_date=01.08.2019 -num_seats=1;
+                 -arr_date=01.08.2019 -num_seats=3;
                  -dep_city=CPH -arr_city=BOJ -dep_date=01.07.2019
                   -num_seats=1.
+
     :return: dict with arguments -> {'-dep_city': 'CPH',
                                      '-arr_city': 'VAR',
                                      '-dep_date': '02.07.2019',
@@ -56,47 +57,52 @@ def send_request(*args):
     Load html page from url.
 
     :param args: request type or url,
-                 headers and data
+                 headers and data.
 
     :return: html page as an <html object>
     """
 
     try:
-        if args[0] != "POST":
+        if args[0] != 'POST':
             request = requests.get(args[0], params=args[1], timeout=(3, 10))
             tree = html.fromstring(request.content)
             result = tree
         else:
             request = requests.post(args[1], headers=args[2], data=args[3],
                                     timeout=(3, 10))
-            result = request.content.decode("utf-8")
+            result = request.content.decode('utf-8')
         request.raise_for_status()
         return result
     except requests.exceptions.ConnectionError:
-        raise requests.exceptions.ConnectionError("A Connection error"
-                                                  "occurred.")
+        raise requests.exceptions.ConnectionError('A Connection error'
+                                                  'occurred.')
     except requests.exceptions.ReadTimeout:
-        raise requests.exceptions.ReadTimeout("Read timeout occurred")
+        raise requests.exceptions.ReadTimeout('Read timeout occurred')
     except requests.exceptions.HTTPError as response:
-        raise requests.exceptions.HTTPError("Code: {}".format(response))
+        raise requests.exceptions.HTTPError('Code: {}'.format(response))
 
 
 def input_data():
     """
     User input and validation check. Input continues
-    until valid values are entered.
+    until valid values are entered or enter "exit" to
+    quit.
 
     :return: dict with data -> (departure IATA-code,
              arrival IATA-code, departure date, arrival date,
-             number of seats)
+             number of seats).
     """
 
     while True:
-        user_input = input("Enter flight details - "
-                           "departure city,arrival city,"
-                           "departure date,number of seats"
-                           "[,arrival date]\n in format "
-                           "CPH,BLL,15.04.2019,2: ")
+        user_input = input('Enter flight details - '
+                           'departure city,arrival city,'
+                           'departure date,number of seats'
+                           '[,arrival date]\n in format '
+                           'CPH,BLL,15.07.2019,2[,25.07.2019]'
+                           'or enter "exit" ot quit: ')
+
+        if user_input == 'exit':
+            raise SystemExit
 
         data_list_values = tuple(user_input.split(','))
 
@@ -113,15 +119,12 @@ def input_data():
         except KeyError:
             print('Not enough data.')
             continue
-
         return user_data
 
 
 def is_data_valid(user_data):
     """
     Checked result of input_data() for correctness.
-    Result of iata_code(page) and get_available_date(iata_codes)
-    are used to validate user input.
     if data is incorrect, then exception InvalidData is called
     and print the message with information about incorrect value.
 
@@ -142,7 +145,7 @@ def is_data_valid(user_data):
     if not VALID_IATA.match(user_data['dep_city']) \
             or not VALID_IATA.match(user_data['arr_city']):
         raise InvalidData('Incorrect IATA-code. Must consist of three'
-                          'uppercase symbols.')
+                          ' uppercase symbols.')
 
     # Valid number of seats check
     try:
@@ -151,6 +154,7 @@ def is_data_valid(user_data):
             raise InvalidData('Incorrect numbers of seats. Must be in [1,8]')
     except ValueError:
         raise InvalidData('Incorrect number of seats value. Must be in [1,8]')
+
     # Valid date check
     try:
         dep_date = datetime.strptime(user_data['dep_date'], '%d.%m.%Y').date()
@@ -197,10 +201,18 @@ def get_search_page(values):
 
 def parse_data(info, price):
     """
+    Get information about date, time, airports
+    and price for flights.
 
-    :param info:
-    :param price:
-    :return:
+    :param info: table row containing date, time
+                 and airports.
+    :param price: table row containing price.
+
+    :return: parse dict -> {'dep_city': dep_iata,
+                            'arr_city': arr_iata,
+                            'dep_date': dep_date,
+                            'arr_date': arr_date,
+                            'price': (float(parse_price), currency)}
     """
 
     fly_date = info.xpath("./td[2]/text()")[0]
@@ -234,15 +246,20 @@ def parse_data(info, price):
 def get_flight_information(search_page, user_data):
     """
     Get flight information for entered data in input_data(page).
-    Create going_out and coming_back lists with <tr> tags for
-    Going Out and Coming Back flights.
+    Create flights list with nested lists with <tr> tags witch
+    contain information about city, date and price.
 
-    :param search_page: result of get_search_page(values)
-    :param user_data: flight parameters entered by the user
+    :param search_page: result of get_search_page(values).
+    :param user_data: flight parameters entered by the user.
 
-    :return: For one-way - one_way_flight(going_out)
-             For return - return_flight(combination)
-             If no information - return "No available flights found."
+    :return: For one-way - function product(*flights), where
+             flights have one nested list.
+             For return - function product(*flights), where
+             flights have two nested lists for "out" and "in" flights.
+             If flights[0] is empty NoResultException is called and
+             return "No outbound flights"
+             If flights[1] is empty NoResultException is called and
+             return "No inbound flights".
     """
 
     try:
@@ -253,7 +270,7 @@ def get_flight_information(search_page, user_data):
                                             ' "_rprc")]')
 
         if not outbound_info:
-            raise NoResultException('No outbound flights')
+            raise NoResultException
 
         for info, price in zip(outbound_info, outbound_prices):
             flights[0].append(parse_data(info, price))
@@ -269,7 +286,7 @@ def get_flight_information(search_page, user_data):
                                                ' "irprc")]')
 
             if not inbound_info:
-                raise NoResultException('No inbounds')
+                raise NoResultException
 
             for info, price in zip(inbound_info, inbound_prices):
                 flights[1].append(parse_data(info, price))
@@ -284,13 +301,11 @@ def data_generation(fly_data, user_data):
     """
     Data processing and formation in json format.
 
-    :param fly_data: result of parse_data(info, price)
+    :param fly_data: result of get_flight_information(search_page,
+           user_data)
     :param user_data: flight parameters entered by the user
 
-    :return: if get_flight_information(search_page) return
-    "No available flights found." or no valid dates for
-     return flight - return "No available flights found."
-     else return flight information in json format:
+    :return: flight information in json format:
      - one-way flight:
         [
             {
@@ -314,7 +329,7 @@ def data_generation(fly_data, user_data):
      Return flight results sorted by price.
     """
 
-    num_of_tickets = user_data['num_seats']
+    num_of_tickets = int(user_data['num_seats'])
 
     if user_data['arr_date']:
         fly_dict_keys = ('Going out', 'Departure date',
@@ -353,13 +368,13 @@ def data_generation(fly_data, user_data):
 
 def scrape():
     """
-    Main function. Call other functions and
+    Main function. Call other functions to collect and
     generates flight information in json format.
-    If function is called with arguments **kwargs, then they are
-    passed to the get_search_request(values), else called input_data().
+    If function get_args is called without arguments, then called
+    InvalidData and the data are entered by the user.
 
     :return: information about flights in json format or
-             "No available flights found."
+             "No outbound flights" or "No inbound flights".
     """
 
     user_data = get_args()
