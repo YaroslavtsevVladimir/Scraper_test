@@ -2,9 +2,9 @@
 """ Fly Bulgarian. Display of flight information. """
 
 import argparse
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import product, zip_longest
-import json
 import re
 import sys
 import requests
@@ -40,7 +40,6 @@ def get_args():
                                      '-arr_date': '15.07.2019',
                                      '-num_seats': 2}
     """
-
     parser = argparse.ArgumentParser(description='Fly Bulgarian scraping.')
     parser.add_argument('-dep_city', type=str, help='Departure city')
     parser.add_argument('-arr_city', type=str, help='Arrival city')
@@ -60,8 +59,9 @@ def send_request(data):
 
     :return: html page as an <html object>
     """
-
     try:
+        # A lot of time to read is given due to a long request to the
+        # search page.
         request = requests.get(URL, params=data, timeout=(3, 25))
         tree = html.fromstring(request.content)
         request.raise_for_status()
@@ -86,7 +86,6 @@ def input_data():
              arrival IATA-code, departure date, arrival date,
              number of seats).
     """
-
     while True:
         user_input = input('Enter flight details - '
                            'departure city,arrival city,'
@@ -128,7 +127,7 @@ def is_data_valid(user_data):
                            "num_seats": "2"}
               for one-way flight "arr_date": None.
     """
-
+    today = datetime.today().date()
     if any(not user_data[key] for key in ['dep_city', 'arr_city',
                                           'dep_date', 'num_seats']):
         raise InvalidData('No parameters specified.')
@@ -145,15 +144,20 @@ def is_data_valid(user_data):
         if num_seats not in range(1, 9):
             raise InvalidData('Incorrect numbers of seats. Must be in [1,8]')
     except ValueError:
-        raise InvalidData('Incorrect number of seats value. Must be in [1,8]')
+        raise InvalidData('Incorrect number of seats value. Must be number '
+                          'in [1,8]')
 
     # Valid date check
     try:
         dep_date = datetime.strptime(user_data['dep_date'], '%d.%m.%Y').date()
+        user_data['dep_date_object'] = dep_date
+        if dep_date < today:
+            raise InvalidData('Date should not be less than today.')
 
         if user_data['arr_date']:
             arr_date = datetime.strptime(user_data['arr_date'],
                                          '%d.%m.%Y').date()
+            user_data['arr_date_object'] = arr_date
             if arr_date < dep_date:
                 raise InvalidData('Arrival date should not be more than'
                                   ' departure date')
@@ -175,7 +179,6 @@ def get_search_page(user_data):
 
     :return: html page as an <html object>
     """
-
     data = {'ow': '',
             'lang': 'en',
             'depdate': user_data['dep_date'],
@@ -194,181 +197,239 @@ def get_search_page(user_data):
 def parse_data(info, price):
     """
     Get information about date, time, airports
-    and price for flights.
+    and price for flights. For this called functions:
+    parse_date(info), parse_cities(info), parse_price(price).
 
     :param info: table row containing date, time
                  and airports.
     :param price: table row containing price.
 
-    :return: parse dict -> {'dep_city': dep_iata,
-                            'arr_city': arr_iata,
+    :return: parse dict -> {'dep_city': dep_city,
+                            'arr_city': arr_city,
                             'dep_date': dep_date,
                             'arr_date': arr_date,
-                            'price': (float(parse_price), currency)}
+                            'duration': duration,
+                            'price': price,
+                            'currency': currency}
     """
+    dep_city, arr_city = parse_cities(info)
 
+    dep_date, arr_date = parse_date(info)
+    duration = arr_date - dep_date
+
+    price, currency = parse_price(price)
+
+    return {'dep_city': dep_city,
+            'arr_city': arr_city,
+            'dep_date': dep_date,
+            'arr_date': arr_date,
+            'duration': duration,
+            'price': price,
+            'currency': currency}
+
+
+def parse_date(info):
+    """
+    Get information about flights date.
+
+    :param info: table row containing date, time
+                 and airports.
+
+    :return: tuple -> (dep_date, arr_date)
+    """
     fly_date = info.xpath("./td[2]/text()")[0]
     dep_time = info.xpath("./td[3]/text()")[0]
     arr_time = info.xpath("./td[4]/text()")[0]
-    dep_airport = info.xpath("./td[5]/text()")[0]
-    arr_airport = info.xpath("./td[6]/text()")[0]
 
     dep_date = datetime.strptime(fly_date + dep_time,
                                  "%a, %d %b %y%H:%M")
     arr_date = datetime.strptime(fly_date + arr_time,
                                  "%a, %d %b %y%H:%M")
 
-    dep_iata = REG_IATA.search(dep_airport).group()
-    arr_iata = REG_IATA.search(arr_airport).group()
+    # If arrival time is after midnight
+    if arr_date < dep_date:
+        arr_date += timedelta(days=1)
 
-    price_elem = price.xpath('./td[contains(text(), "Price")]/text()')[0]
-
-    parse_price = REG_PRICE.search(price_elem).group(1)
-    currency = REG_PRICE.search(price_elem).group(2)
-
-    result = {'dep_city': dep_iata,
-              'arr_city': arr_iata,
-              'dep_date': dep_date,
-              'arr_date': arr_date,
-              'price': (float(parse_price), currency)}
-
-    return result
+    return dep_date, arr_date
 
 
-def get_flight_information(search_page, user_data):
+def parse_cities(info):
+    """
+    Get information about flights date.
+
+    :param info: table row containing date, time
+                 and airports.
+
+    :return: tuple -> (dep_city, arr_city)
+    """
+    dep_airport = info.xpath("./td[5]/text()")[0]
+    arr_airport = info.xpath("./td[6]/text()")[0]
+
+    dep_city = REG_IATA.search(dep_airport).group()
+    arr_city = REG_IATA.search(arr_airport).group()
+
+    return dep_city, arr_city
+
+
+def parse_price(price_element):
+    """
+    Get information about flights price.
+
+    :param price_element: table row containing price.
+
+    :return: tuple -> (float(price), currency)
+    """
+    price_string = price_element.xpath(
+        './td[contains(text(), "Price")]/text()'
+    )[0]
+
+    price = REG_PRICE.search(price_string).group(1)
+    currency = REG_PRICE.search(price_string).group(2)
+    return float(price), currency
+
+
+def parse_results(search_page, user_data):
     """
     Get flight information for entered data in input_data(page).
-    Create flights list with nested lists with <tr> tags witch
+    Create dict with nested lists with <tr> tags witch
     contain information about city, date and price.
 
     :param search_page: result of get_search_page(values).
     :param user_data: flight parameters entered by the user.
 
-    :return: For one-way - function product(*flights), where
-             flights have one nested list.
-             For return - function product(*flights), where
-             flights have two nested lists for "out" and "in" flights.
-             If flights[0] is empty NoResultException is called and
-             return "No outbound flights"
-             If flights[1] is empty NoResultException is called and
-             return "No inbound flights".
+    :return: function finalize_results(user_data, flights).
     """
+    info_xpath = './/table//tr[contains(@id, "_{}inf")]'
+    price_xpath = './/table//tr[contains(@id, "_{}prc")]'
 
-    try:
-        flights = [[], []] if user_data['arr_date'] else [[]]
-        outbound_info = search_page.xpath('.//table//tr[contains(@id,'
-                                          ' "_rinf")]')
-        outbound_prices = search_page.xpath('.//table//tr[contains(@id,'
-                                            ' "_rprc")]')
+    flights = defaultdict(list)
+    indexes = [0] if not user_data['arr_date'] else [0, 1]
 
-        if not outbound_info:
-            raise NoResultException
+    for i, key in zip(indexes, ['r', 'ir']):
+        infos = search_page.xpath(info_xpath.format(key))
+        prices = search_page.xpath(price_xpath.format(key))
 
-        for info, price in zip(outbound_info, outbound_prices):
-            flights[0].append(parse_data(info, price))
+        if not infos or not prices:
+            raise NoResultException('No {} flights found.'.format(
+                {0: 'outbound', 1: 'inbound'}[i]))
 
-    except NoResultException:
-        return 'No outbound flights'
+        for info, price in zip(infos, prices):
+            flights[i].append(parse_data(info, price))
 
-    try:
-        if user_data['arr_date']:
-            inbound_info = search_page.xpath('.//table//tr[contains(@id,'
-                                             ' "irinf")]')
-            inbound_prices = search_page.xpath('.//table//tr[contains(@id,'
-                                               ' "irprc")]')
-
-            if not inbound_info:
-                raise NoResultException
-
-            for info, price in zip(inbound_info, inbound_prices):
-                flights[1].append(parse_data(info, price))
-    except NoResultException:
-        return 'No inbound flights'
-
-    combination = product(*flights)
-    return combination
+    return finalize_results(user_data, flights)
 
 
-def data_generation(fly_data, user_data):
+def check_flight(user_data, flight):
     """
-    Data processing and formation in json format.
+    Checked for coincidence of entered airports and dates taken
+    from the search page. If no match, AssertionError is called.
 
-    :param fly_data: result of get_flight_information(search_page,
-           user_data)
-    :param user_data: flight parameters entered by the user
-
-    :return: flight information in json format:
-     - one-way flight:
-        [
-            {
-                'Date': 'Sat, 06 Jul 19',
-                'Departure time': '21:50',
-                'Arrival time': '01:40',
-                'Flight time': '3:50:00',
-                'Price': '160.00 EUR'
-            }
-        ];
-     - return flight:
-        [
-            {
-                'Going out': 'CPH - VAR',
-                'Departure date': 'Tue, 02 Jul 19 21:50',
-                'Coming back': 'BOJ - BLL',
-                'Arrival date': 'Mon, 22 Jul 19 16:00',
-                'Price': '379.0 EUR'
-            }
-        ].
-     Return flight results sorted by price.
+    :param user_data: flight parameters entered by the user.
+    :param flight: dict with flights data.
     """
+    count = 1 if not user_data['arr_date'] else 2
+    assert count == len(flight)
 
-    num_of_tickets = int(user_data['num_seats'])
+    assert all([
+        user_data['dep_date_object'] == flight[0]['dep_date'].date(),
+        user_data['dep_city'] == flight[0]['dep_city'],
+        user_data['arr_city'] == flight[0]['arr_city']
+    ])
 
     if user_data['arr_date']:
-        fly_dict_keys = ('Going out', 'Departure date',
-                         'Coming back', 'Arrival date',
-                         'Price')
+        assert all([
+            user_data['arr_date_object'] == flight[1]['dep_date'].date(),
+            user_data['arr_city'] == flight[1]['dep_city'],
+            user_data['dep_city'] == flight[1]['arr_city']
+        ])
 
-        fly_dict_values = (
-            ('{} - {}'.format(flight[0]['dep_city'], flight[0]['arr_city']),
-             flight[0]['dep_date'].strftime('%a, %d %b %y %H:%M'),
-             '{} - {}'.format(flight[1]['dep_city'], flight[1]['arr_city']),
-             flight[1]['dep_date'].strftime('%a, %d %b %y %H:%M'),
-             str((flight[0]['price'][0] + flight[1]['price'][0])
-                 * num_of_tickets)
-             + flight[0]['price'][1]) for flight in fly_data
-            if flight[0]['dep_date'] < flight[1]['dep_date'])
+
+def finalize_results(user_data, flights):
+    """
+    Generates flights data and sort by price.
+
+    :param user_data: flight parameters entered by the user.
+    :param flights: dict with flights data.
+
+    :return: sorted list with
+    """
+    num_seats = int(user_data['num_seats'])
+    final_results = []
+
+    for flight in product(*flights.values()):
+        try:
+            check_flight(user_data, flight)
+        except AssertionError:
+            continue
+
+        if flight[1]['dep_date'] < flight[0]['dep_date']:
+            continue
+
+        flight_dict = {}
+        for header, data in zip(['Going out:', 'Coming back:'], flight):
+
+            data.update(
+                {'dep_date_sec': data['dep_date'].strftime('%Y-%m-%d %H:%M'),
+                 'arr_date_sec': data['arr_date'].strftime('%Y-%m-%d %H:%M'),
+                 'duration': str(data['duration'])[:-3]})
+
+            flight_dict[header] = ('Departure_city: {dep_city},'
+                                   ' Arrival_city: {arr_city},'
+                                   ' Departure_date: {dep_date_sec},'
+                                   ' Arrival_date: {arr_date_sec},'
+                                   ' Duration: {duration}').format(**data)
+
+        flight_dict['Price:'] = str(
+            sum(d['price'] * num_seats for d in flight))\
+            + flight[0]['currency']
+
+        final_results.append(flight_dict)
+
+    return sorted(final_results, key=lambda d: d['Price:'].split()[0])
+
+
+def print_results(results):
+    """
+    Data processing and formation.
+
+    :param results: result of finalize_results(user_data, flights).
+
+    :return: flight information:
+     - one-way flight:
+        Found results:
+        Going out: Dep_city: CPH, Arr_city: VAR, Dep_date: 2019-07-13 21:50:00,
+         Arr_date: 2019-07-14 01:40:00
+        Price: 320.0 EUR;
+     - return flight:
+        Going out: Departure_city: BLL, Arrival_city: BOJ,
+         Departure_date: 2019-07-15 18:45, Arrival_date: 2019-07-15 22:45,
+          Duration: 4:00
+        Coming back: Departure_city: BOJ, Arrival_city: BLL,
+         Departure_date: 2019-07-29 16:00, Arrival_date: 2019-07-29 17:50,
+          Duration: 1:50
+        Price: 768.0 EUR.
+     Flight results sorted by price.
+    """
+    if results:
+        print('Found results: ')
+        for result in results:
+            for key, value in result.items():
+                print(key, value)
+            print('\n')
     else:
-        fly_dict_keys = ('Date', 'Departure time', 'Arrival time',
-                         'Flight time', 'Price')
-
-        fly_dict_values = (
-            (flight[0]['dep_date'].strftime('%a, %d %b %y'),
-             flight[0]['dep_date'].strftime('%H:%M'),
-             flight[0]['arr_date'].strftime('%H:%M'),
-             str(flight[0]['arr_date'] - flight[0]['dep_date'])[-7:],
-             str(flight[0]['price'][0] * num_of_tickets)
-             + flight[0]['price'][1]) for flight in fly_data)
-
-    flight_list = ({key: value for key, value in zip(fly_dict_keys, values)}
-                   for values in fly_dict_values)
-
-    result = sorted(flight_list, key=lambda price_key:
-                    float(price_key['Price'].split()[0]))
-    result = json.dumps(result, indent=4)
-    return result
+        print('No flights found for requested data.')
 
 
 def scrape():
     """
     Main function. Call other functions to collect and
-    generates flight information in json format.
+    generates flight information.
     If function get_args is called without arguments, then called
     InvalidData and the data are entered by the user.
 
-    :return: information about flights in json format or
-             "No outbound flights" or "No inbound flights".
+    :return: information about flights or report that no results
+             were found for this data.
     """
-
     user_data = get_args()
     try:
         is_data_valid(user_data)
@@ -377,14 +438,13 @@ def scrape():
         user_data = input_data()
 
     search_page = get_search_page(user_data)
-    flights = get_flight_information(search_page, user_data)
-
-    if isinstance(flights, str):
-        result = flights
+    try:
+        results = parse_results(search_page, user_data)
+    except NoResultException as error:
+        print(error)
     else:
-        result = data_generation(flights, user_data)
-    return result
+        print_results(results)
 
 
 if __name__ == '__main__':
-    print(scrape())
+    scrape()
