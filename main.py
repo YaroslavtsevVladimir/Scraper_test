@@ -79,7 +79,7 @@ def send_request(data):
 def input_data():
     """
     User input and validation check. Input continues
-    until valid values are entered or enter "exit" to
+    until valid values are entered or enter 'exit' to
     quit.
 
     :return: dict with data -> (departure IATA-code,
@@ -90,7 +90,7 @@ def input_data():
         user_input = input('Enter flight details - '
                            'departure city,arrival city,'
                            'departure date,number of seats'
-                           '[,arrival date]\n in format '
+                           '[,arrival date]\nin format '
                            'CPH,BLL,15.07.2019,2[,25.07.2019]'
                            'or enter "exit" ot quit: ')
 
@@ -121,11 +121,12 @@ def is_data_valid(user_data):
 
     :return: if exception InvalidData is called - message about
              incorrect value,
-             else dict -> {"dep_city": "CPH", "arr_city": "VAR",
-                           "dep_date": '15.07.2019' ,
-                           "arr_date": "20.07.2019",
-                           "num_seats": "2"}
-              for one-way flight "arr_date": None.
+             else dict -> {'dep_city': 'CPH', 'arr_city': 'VAR',
+                           'dep_date': '15.07.2019',
+                           'arr_date': '20.07.2019',
+                           'num_seats': '2',
+                           'dep_date_object': '15.07.2019'}
+              for one-way flight 'arr_date': None.
     """
     today = datetime.today().date()
     if any(not user_data[key] for key in ['dep_city', 'arr_city',
@@ -174,7 +175,7 @@ def get_search_page(user_data):
     Tag <iframe> attribute <src> is used as request.
 
     :param user_data: result of input_data(page).
-                   If Arrival date(values["arr_date") is None -
+                   If Arrival date(values['arr_date') is None -
                    - use request for one-way flight.
 
     :return: html page as an <html object>
