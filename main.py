@@ -6,13 +6,13 @@ from datetime import datetime
 from itertools import product, zip_longest
 import json
 import re
+import sys
 import requests
 from lxml import html
 
 URL = 'https://apps.penguin.bg/fly/quote3.aspx'
-VALID_IATA = re.compile(r'^[A-Z]{3}$')
-REG_PRICE = re.compile(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)')
 REG_IATA = re.compile(r'[A-Z]{3}')
+REG_PRICE = re.compile(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)')
 
 
 class NoResultException(Exception):
@@ -52,34 +52,28 @@ def get_args():
     return args_dict
 
 
-def send_request(*args):
+def send_request(data):
     """
     Load html page from url.
 
-    :param args: request type or url,
-                 headers and data.
+    :param data: data for formation requests.
 
     :return: html page as an <html object>
     """
 
     try:
-        if args[0] != 'POST':
-            request = requests.get(args[0], params=args[1], timeout=(3, 10))
-            tree = html.fromstring(request.content)
-            result = tree
-        else:
-            request = requests.post(args[1], headers=args[2], data=args[3],
-                                    timeout=(3, 10))
-            result = request.content.decode('utf-8')
+        request = requests.get(URL, params=data, timeout=(3, 25))
+        tree = html.fromstring(request.content)
         request.raise_for_status()
-        return result
-    except requests.exceptions.ConnectionError:
-        raise requests.exceptions.ConnectionError('A Connection error'
-                                                  'occurred.')
-    except requests.exceptions.ReadTimeout:
-        raise requests.exceptions.ReadTimeout('Read timeout occurred')
+        return tree
+    except requests.exceptions.ConnectionError as error:
+        sys.exit('Connection Error: {}'.format(error))
+
+    except requests.exceptions.ReadTimeout as error:
+        sys.exit('ReadTime Error: {}'.format(error))
+
     except requests.exceptions.HTTPError as response:
-        raise requests.exceptions.HTTPError('Code: {}'.format(response))
+        sys.exit('Code: {}'.format(response))
 
 
 def input_data():
@@ -116,9 +110,7 @@ def input_data():
         except InvalidData as error:
             print(error)
             continue
-        except KeyError:
-            print('Not enough data.')
-            continue
+
         return user_data
 
 
@@ -142,8 +134,8 @@ def is_data_valid(user_data):
         raise InvalidData('No parameters specified.')
 
     # Valid IATA-code check
-    if not VALID_IATA.match(user_data['dep_city']) \
-            or not VALID_IATA.match(user_data['arr_city']):
+    if not REG_IATA.match(user_data['dep_city']) \
+            or not REG_IATA.match(user_data['arr_city']):
         raise InvalidData('Incorrect IATA-code. Must consist of three'
                           ' uppercase symbols.')
 
@@ -172,12 +164,12 @@ def is_data_valid(user_data):
     return user_data
 
 
-def get_search_page(values):
+def get_search_page(user_data):
     """
     Get search page for parsing flight information.
     Tag <iframe> attribute <src> is used as request.
 
-    :param values: result of input_data(page).
+    :param user_data: result of input_data(page).
                    If Arrival date(values["arr_date") is None -
                    - use request for one-way flight.
 
@@ -186,17 +178,17 @@ def get_search_page(values):
 
     data = {'ow': '',
             'lang': 'en',
-            'depdate': values['dep_date'],
-            'aptcode1': values['dep_city'],
-            'aptcode2': values['arr_city'],
-            'paxcount': values['num_seats'],
+            'depdate': user_data['dep_date'],
+            'aptcode1': user_data['dep_city'],
+            'aptcode2': user_data['arr_city'],
+            'paxcount': user_data['num_seats'],
             'infcount': ''}
 
-    if values['arr_date'] is not None:
+    if user_data['arr_date'] is not None:
         data['rt'] = data.pop('ow')
-        data.update(rtdate=values['arr_date'])
+        data.update(rtdate=user_data['arr_date'])
 
-    return send_request(URL, data)
+    return send_request(data)
 
 
 def parse_data(info, price):
