@@ -340,7 +340,8 @@ def check_flight(user_data, flight):
         assert all([
             user_data['arr_date_object'] == flight[1]['dep_date'].date(),
             user_data['arr_city'] == flight[1]['dep_city'],
-            user_data['dep_city'] == flight[1]['arr_city']
+            user_data['dep_city'] == flight[1]['arr_city'],
+            flight[1]['dep_date'] > flight[0]['dep_date']
         ])
 
 
@@ -360,9 +361,6 @@ def finalize_results(user_data, flights):
         try:
             check_flight(user_data, flight)
         except AssertionError:
-            continue
-
-        if flight[1]['dep_date'] < flight[0]['dep_date']:
             continue
 
         flight_dict = {}
