@@ -368,8 +368,8 @@ def finalize_results(user_data, flights):
         for header, data in zip(['Going out:', 'Coming back:'], flight):
 
             data.update(
-                {'dep_date_sec': data['dep_date'].strftime('%Y-%m-%d %H:%M'),
-                 'arr_date_sec': data['arr_date'].strftime('%Y-%m-%d %H:%M'),
+                {'dep_date_sec': data['dep_date'].strftime('%d.%m.%Y %H:%M'),
+                 'arr_date_sec': data['arr_date'].strftime('%d.%m.%Y %H:%M'),
                  'duration': str(data['duration'])[:-3]})
 
             flight_dict[header] = ('Departure_city: {dep_city},'
