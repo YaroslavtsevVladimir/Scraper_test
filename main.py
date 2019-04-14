@@ -343,7 +343,7 @@ def check_flight(user_data, flight):
             user_data['arr_date_object'] == flight[1]['dep_date'].date(),
             user_data['arr_city'] == flight[1]['dep_city'],
             user_data['dep_city'] == flight[1]['arr_city'],
-            flight[1]['dep_date'] > flight[0]['dep_date']
+            flight[1]['dep_date'] > flight[0]['arr_date']
         ])
 
 
