@@ -11,8 +11,6 @@ import requests
 from lxml import html
 
 URL = 'https://apps.penguin.bg/fly/quote3.aspx'
-REG_IATA = re.compile(r'[A-Z]{3}')
-REG_PRICE = re.compile(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)')
 
 
 class NoResultException(Exception):
@@ -134,8 +132,8 @@ def is_data_valid(user_data):
         raise InvalidData('No parameters specified.')
 
     # Valid IATA-code check
-    if not REG_IATA.match(user_data['dep_city']) \
-            or not REG_IATA.match(user_data['arr_city']):
+    if not re.match(r'^[A-Z]{3}$', user_data['dep_city']) \
+            or not re.match(r'^[A-Z]{3}$', user_data['arr_city']):
         raise InvalidData('Incorrect IATA-code. Must consist of three'
                           ' uppercase symbols.')
 
@@ -266,8 +264,8 @@ def parse_cities(info):
     dep_airport = info.xpath("./td[5]/text()")[0]
     arr_airport = info.xpath("./td[6]/text()")[0]
 
-    dep_city = REG_IATA.search(dep_airport).group()
-    arr_city = REG_IATA.search(arr_airport).group()
+    dep_city = re.search(r'[A-Z]{3}', dep_airport).group()
+    arr_city = re.search(r'[A-Z]{3}', arr_airport).group()
 
     return dep_city, arr_city
 
@@ -284,8 +282,11 @@ def parse_price(price_element):
         './td[contains(text(), "Price")]/text()'
     )[0]
 
-    price = REG_PRICE.search(price_string).group(1)
-    currency = REG_PRICE.search(price_string).group(2)
+    price = re.search(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)',
+                      price_string).group(1)
+
+    currency = re.search(r'Price:\s{2}(\d{2,3}\.\d{2})( EUR)',
+                         price_string).group(2)
     return float(price), currency
 
 
@@ -372,10 +373,10 @@ def finalize_results(user_data, flights):
                  'arr_date_sec': data['arr_date'].strftime('%d.%m.%Y %H:%M'),
                  'duration': str(data['duration'])[:-3]})
 
-            flight_dict[header] = ('Departure_city: {dep_city},'
-                                   ' Arrival_city: {arr_city},'
-                                   ' Departure_date: {dep_date_sec},'
-                                   ' Arrival_date: {arr_date_sec},'
+            flight_dict[header] = ('Departure city: {dep_city},'
+                                   ' Arrival city: {arr_city},'
+                                   ' Departure date: {dep_date_sec},'
+                                   ' Arrival date: {arr_date_sec},'
                                    ' Duration: {duration}').format(**data)
 
         flight_dict['Price:'] = str(
